@@ -1,9 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { obtenerResumenInventario } from "@/lib/services/inventory";
+import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
+import { calcularPronosticoMensual } from "@/lib/services/demand";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "DEMANDA")) {
+      return NextResponse.json({ error: "Permiso denegado para consultar demanda." }, { status: 403 });
+    }
+
     const productos = await obtenerResumenInventario();
 
     // Obtener ventas reales históricas agrupadas por producto
@@ -19,8 +30,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    const ahora = new Date();
+    const periodosPronostico = [-3, -2, -1].map((desfase) => {
+      const fecha = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() + desfase, 1));
+      return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, "0")}`;
+    });
+
     // Ventas acumuladas reales por producto
     const ventasPorProducto: Record<string, { paquetes: number; valorTotal: number; zonas: Record<string, number> }> = {};
+    const ventasMensualesPorProducto: Record<string, Record<string, number>> = {};
     let totalValorVentasGlobal = 0;
 
     for (const d of detallesVentas) {
@@ -35,6 +53,18 @@ export async function GET(req: NextRequest) {
       const zona = d.pedido.zonaDestino;
       if (zona) {
         ventasPorProducto[d.productoId].zonas[zona] = (ventasPorProducto[d.productoId].zonas[zona] || 0) + d.paquetesEntregados;
+      }
+
+      if (d.pedido.fechaEntregaReal) {
+        const fechaEntrega = new Date(d.pedido.fechaEntregaReal);
+        const periodo = `${fechaEntrega.getUTCFullYear()}-${String(fechaEntrega.getUTCMonth() + 1).padStart(2, "0")}`;
+        if (periodosPronostico.includes(periodo)) {
+          if (!ventasMensualesPorProducto[d.productoId]) {
+            ventasMensualesPorProducto[d.productoId] = {};
+          }
+          ventasMensualesPorProducto[d.productoId][periodo] =
+            (ventasMensualesPorProducto[d.productoId][periodo] || 0) + d.paquetesEntregados;
+        }
       }
     }
 
@@ -83,21 +113,10 @@ export async function GET(req: NextRequest) {
         riesgoSobreinventario = true;
       }
 
-      // Evaluación de pronóstico: si historial < 3 periodos => Datos Insuficientes
-      const tieneHistorialSuficiente = p.paquetesVendidos >= 30; // Criterio real de volumen
-      const pronostico = tieneHistorialSuficiente
-        ? {
-            estado: "DISPONIBLE",
-            demandaEstimadaSiguientePeriodo: Math.round(p.paquetesVendidos * 1.15),
-            tendencia: "CRECIENTE",
-            errorEstimadoPct: 6.5,
-          }
-        : {
-            estado: "DATOS_INSUFICIENTES",
-            demandaEstimadaSiguientePeriodo: null,
-            tendencia: "INDETERMINADA",
-            mensaje: "Datos insuficientes en base de datos. Requiere más registros de pedidos entregados.",
-          };
+      const pronostico = calcularPronosticoMensual(
+        ventasMensualesPorProducto[p.id] || {},
+        periodosPronostico
+      );
 
       return {
         ...p,

@@ -70,7 +70,7 @@ export default function DemandaPage() {
         <div>
           <strong className="font-semibold block mb-0.5">Política Estricta de Integridad Operativa:</strong>
           Los pronósticos y rotaciones se calculan exclusivamente sobre facturación y despachos reales registrados en base de datos.
-          Los productos sin rotación comprobada figuran como <em>Sin Movimiento</em> y sus modelos predictivos permanecen en estado <strong>Datos Insuficientes</strong> hasta acumular el volumen de muestra estadístico necesario.
+          Los           productos sin tres meses completos de entregas reales permanecen en estado <strong>Datos Insuficientes</strong>.
         </div>
       </div>
 

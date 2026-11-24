@@ -6,10 +6,18 @@ import { Shield, Lock, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@cin.com");
-  const [password, setPassword] = useState("cin123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const targetEmail = window.sessionStorage.getItem("cin_login_email");
+    if (targetEmail) {
+      setEmail(targetEmail);
+      window.sessionStorage.removeItem("cin_login_email");
+    }
+  }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -39,7 +47,7 @@ export default function LoginPage() {
 
   const handleQuickRole = (targetEmail: string) => {
     setEmail(targetEmail);
-    setPassword("cin123456");
+    setPassword("");
   };
 
   return (
@@ -115,40 +123,38 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Selector Rápido de Roles */}
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-cin-600" />
-              Acceso Rápido por Rol para Pruebas:
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[
-                { label: "Administrador", email: "admin@cin.com" },
-                { label: "Gerencia", email: "gerencia@cin.com" },
-                { label: "Inventario", email: "inventario@cin.com" },
-                { label: "Producción", email: "produccion@cin.com" },
-                { label: "Distribución", email: "distribucion@cin.com" },
-                { label: "Calidad", email: "calidad@cin.com" },
-              ].map((r) => (
-                <button
-                  key={r.email}
-                  type="button"
-                  onClick={() => handleQuickRole(r.email)}
-                  className={`text-[11px] py-1 px-2 border rounded text-left transition-colors flex items-center justify-between ${
-                    email === r.email
-                      ? "bg-cin-50 border-cin-300 text-cin-800 font-semibold"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <span>{r.label}</span>
-                  {email === r.email && <CheckCircle2 className="w-3 h-3 text-cin-600" />}
-                </button>
-              ))}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <p className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-cin-600" />
+                Usuarios de prueba:
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { label: "Administrador", email: "admin@cin.com" },
+                  { label: "Gerencia", email: "gerencia@cin.com" },
+                  { label: "Inventario", email: "inventario@cin.com" },
+                  { label: "Producción", email: "produccion@cin.com" },
+                  { label: "Distribución", email: "distribucion@cin.com" },
+                  { label: "Calidad", email: "calidad@cin.com" },
+                ].map((role) => (
+                  <button
+                    key={role.email}
+                    type="button"
+                    onClick={() => handleQuickRole(role.email)}
+                    className={`text-[11px] py-1 px-2 border rounded text-left transition-colors flex items-center justify-between ${
+                      email === role.email
+                        ? "bg-cin-50 border-cin-300 text-cin-800 font-semibold"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <span>{role.label}</span>
+                    {email === role.email && <CheckCircle2 className="w-3 h-3 text-cin-600" />}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="text-[10px] text-slate-400 mt-2 text-center">
-              Clave estándar precargada: <span className="font-mono text-slate-600">cin123456</span>
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,8 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (
+      !tienePermiso(session.rol, "ALMACENES") &&
+      !tienePermiso(session.rol, "INVENTARIO") &&
+      !tienePermiso(session.rol, "CALIDAD")
+    ) {
+      return NextResponse.json({ error: "Permiso denegado para consultar almacenes." }, { status: 403 });
+    }
+
     const almacenes = await prisma.almacen.findMany({
       include: {
         movimientos: {

@@ -10,9 +10,11 @@ import { solveCPM } from "../src/lib/math-engine/cpm-network";
 import { solveDecisionTheory } from "../src/lib/math-engine/decision-theory";
 import { resolverModelo } from "../src/lib/math-engine";
 import { tienePermiso } from "../src/lib/auth/permissions";
+import { createSessionToken, verifySessionToken } from "../src/lib/auth/session";
 import { LPProblem } from "../src/lib/math-engine/types";
 import prisma from "../src/lib/db/prisma";
 import { registrarMovimientoTransaccional, obtenerStockPorProducto } from "../src/lib/services/inventory";
+import { calcularPronosticoMensual } from "../src/lib/services/demand";
 import { DataOriginBadge, EmptyState } from "../src/components/common";
 
 async function runTestSuite() {
@@ -213,6 +215,7 @@ async function runTestSuite() {
     });
     assert.strictEqual(res.esFactible, true);
     assert.strictEqual(res.valorObjetivo, 12);
+    assert.ok(res.detallesCalculo);
     assert(res.detallesCalculo.rutaCriticaNombres.includes("Act A"));
     assert(res.detallesCalculo.rutaCriticaNombres.includes("Act B"));
     assert(res.detallesCalculo.rutaCriticaNombres.includes("Act D"));
@@ -231,6 +234,7 @@ async function runTestSuite() {
     });
     assert.strictEqual(res.esFactible, true);
     assert.strictEqual(res.valorObjetivo, 76);
+    assert.ok(res.detallesCalculo);
     assert.strictEqual(res.detallesCalculo.criterioMaximin.recomendada, "Alt 2");
   });
 
@@ -276,6 +280,49 @@ async function runTestSuite() {
     assert.strictEqual(tienePermiso("DISTRIBUCION", "INVENTARIO"), false);
     assert.strictEqual(tienePermiso("CALIDAD", "CALIDAD"), true);
     assert.strictEqual(tienePermiso("CALIDAD", "CATALOGO"), false);
+  });
+
+  await test("12.2 Sesiones JWT: requieren secreto configurado y verifican el token", async () => {
+    const originalSecret = process.env.JWT_SECRET;
+    const payload = {
+      id: "test-user",
+      email: "test@cin.com",
+      nombreCompleto: "Usuario de prueba",
+      rol: "ADMINISTRADOR" as const,
+    };
+
+    try {
+      delete process.env.JWT_SECRET;
+      await assert.rejects(
+        () => createSessionToken(payload),
+        /JWT_SECRET debe estar configurado/
+      );
+
+      process.env.JWT_SECRET = "test-secret-for-session-tests";
+      const token = await createSessionToken(payload);
+      assert.deepStrictEqual(await verifySessionToken(token), payload);
+    } finally {
+      if (originalSecret === undefined) {
+        delete process.env.JWT_SECRET;
+      } else {
+        process.env.JWT_SECRET = originalSecret;
+      }
+    }
+  });
+
+  await test("12.3 Pronóstico mensual: usa tres periodos reales y declara historial incompleto", () => {
+    const periodos = ["2026-08", "2026-09", "2026-10"];
+    const completo = calcularPronosticoMensual(
+      { "2026-08": 10, "2026-09": 20, "2026-10": 30 },
+      periodos
+    );
+    assert.strictEqual(completo.estado, "DISPONIBLE");
+    assert.strictEqual(completo.demandaEstimadaSiguientePeriodo, 20);
+    assert.strictEqual(completo.tendencia, "CRECIENTE");
+
+    const incompleto = calcularPronosticoMensual({ "2026-10": 30 }, periodos);
+    assert.strictEqual(incompleto.estado, "DATOS_INSUFICIENTES");
+    assert.strictEqual(incompleto.demandaEstimadaSiguientePeriodo, null);
   });
 
   // 13. COMPONENTES COMMON (DataOriginBadge y EmptyState)

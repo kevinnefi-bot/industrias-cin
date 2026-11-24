@@ -17,8 +17,6 @@ const MovimientoSchema = z.object({
     "AJUSTE_POSITIVO",
     "AJUSTE_NEGATIVO",
     "REPOSICION",
-    "TRANSFERENCIA",
-    "RESERVA",
   ]),
   cantidadPaquetes: z.number().int().positive(),
   motivo: z.string().min(3).max(255),

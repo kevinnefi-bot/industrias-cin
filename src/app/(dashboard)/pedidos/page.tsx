@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ShoppingCart,
   Plus,
@@ -27,6 +27,8 @@ export default function PedidosPage() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modalEstadoAbierto, setModalEstadoAbierto] = useState(false);
   const [pedidoParaEditar, setPedidoParaEditar] = useState<any>(null);
+  const [editarEntregaParcial, setEditarEntregaParcial] = useState(false);
+  const [cantidadesEntrega, setCantidadesEntrega] = useState<Record<string, number>>({});
 
   // Form nuevo pedido
   const [form, setForm] = useState({
@@ -39,8 +41,9 @@ export default function PedidosPage() {
     observaciones: "",
     items: [{ productoId: "", paquetesSolicitados: 20, precioUnitarioPaquete: 18.0 }],
   });
+  const primerProductoId = form.items[0].productoId;
 
-  const fetchPedidos = async () => {
+  const fetchPedidos = useCallback(async () => {
     try {
       setLoading(true);
       let url = `/api/pedidos?estado=${estadoFiltro}&zona=${zonaFiltro}`;
@@ -60,7 +63,7 @@ export default function PedidosPage() {
       if (jsonVeh.success) setVehiculos(jsonVeh.vehiculos);
       if (jsonProd.success && jsonProd.productos.length > 0) {
         setProductos(jsonProd.productos);
-        if (!form.items[0].productoId) {
+        if (!primerProductoId) {
           setForm((prev) => ({
             ...prev,
             items: [{ ...prev.items[0], productoId: jsonProd.productos[0].id, precioUnitarioPaquete: jsonProd.productos[0].precioPaquete }],
@@ -72,11 +75,11 @@ export default function PedidosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [estadoFiltro, primerProductoId, zonaFiltro]);
 
   useEffect(() => {
     fetchPedidos();
-  }, [estadoFiltro, zonaFiltro]);
+  }, [fetchPedidos]);
 
   const handleCrearPedido = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +98,11 @@ export default function PedidosPage() {
     }
   };
 
-  const handleActualizarEstado = async (nuevoEstado: string, nuevoVehiculoId?: string) => {
+  const handleActualizarEstado = async (
+    nuevoEstado: string,
+    nuevoVehiculoId?: string | null,
+    detallesEntrega?: { id: string; paquetesEntregados: number; paquetesEnviados: number }[]
+  ) => {
     if (!pedidoParaEditar) return;
     try {
       const res = await fetch("/api/pedidos", {
@@ -105,11 +112,13 @@ export default function PedidosPage() {
           id: pedidoParaEditar.id,
           estado: nuevoEstado,
           vehiculoId: nuevoVehiculoId !== undefined ? nuevoVehiculoId : pedidoParaEditar.vehiculoId,
+          ...(detallesEntrega ? { detallesEntrega } : {}),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al actualizar estado");
       setModalEstadoAbierto(false);
+      setEditarEntregaParcial(false);
       fetchPedidos();
     } catch (err: any) {
       alert(err.message);
@@ -304,6 +313,15 @@ export default function PedidosPage() {
                         <button
                           onClick={() => {
                             setPedidoParaEditar(p);
+                            setEditarEntregaParcial(false);
+                            setCantidadesEntrega(
+                              Object.fromEntries(
+                                p.detalles.map((detalle: any) => [
+                                  detalle.id,
+                                  detalle.paquetesEntregados || 0,
+                                ])
+                              )
+                            );
                             setModalEstadoAbierto(true);
                           }}
                           className="px-2.5 py-1 text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
@@ -323,7 +341,7 @@ export default function PedidosPage() {
       {/* Modal Cambiar Estado */}
       {modalEstadoAbierto && pedidoParaEditar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6 animate-in fade-in zoom-in-95">
             <h3 className="font-bold text-slate-900 text-sm mb-1">
               Actualizar Pedido {pedidoParaEditar.codigo}
             </h3>
@@ -347,7 +365,13 @@ export default function PedidosPage() {
                     <button
                       key={st}
                       type="button"
-                      onClick={() => handleActualizarEstado(st)}
+                      onClick={() => {
+                        if (st === "ENTREGADO_PARCIALMENTE") {
+                          setEditarEntregaParcial(true);
+                        } else {
+                          handleActualizarEstado(st);
+                        }
+                      }}
                       className={`py-1.5 px-3 border rounded-lg text-left transition-colors font-medium ${
                         pedidoParaEditar.estado === st
                           ? "bg-cin-50 border-cin-400 text-cin-800"
@@ -360,11 +384,59 @@ export default function PedidosPage() {
                 </div>
               </div>
 
+              {editarEntregaParcial && (
+                <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="font-semibold text-slate-700">Paquetes entregados por producto</p>
+                  {pedidoParaEditar.detalles.map((detalle: any) => {
+                    const paquetesEnviados = detalle.paquetesEnviados || detalle.paquetesSolicitados;
+                    return (
+                      <label key={detalle.id} className="flex items-center justify-between gap-3">
+                        <span className="text-slate-600">
+                          {detalle.producto.nombre} (enviados: {paquetesEnviados})
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={paquetesEnviados}
+                          value={cantidadesEntrega[detalle.id] ?? 0}
+                          onChange={(event) =>
+                            setCantidadesEntrega((actual) => ({
+                              ...actual,
+                              [detalle.id]: Number(event.target.value),
+                            }))
+                          }
+                          className="w-20 rounded border border-slate-300 px-2 py-1"
+                        />
+                      </label>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleActualizarEstado(
+                        "ENTREGADO_PARCIALMENTE",
+                        undefined,
+                        pedidoParaEditar.detalles.map((detalle: any) => ({
+                          id: detalle.id,
+                          paquetesEntregados: cantidadesEntrega[detalle.id] ?? 0,
+                          paquetesEnviados: detalle.paquetesEnviados || detalle.paquetesSolicitados,
+                        }))
+                      )
+                    }
+                    className="w-full rounded-lg bg-cin-600 px-3 py-1.5 font-semibold text-white hover:bg-cin-700"
+                  >
+                    Guardar entrega parcial
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Asignar Camión de Flota</label>
                 <select
                   defaultValue={pedidoParaEditar.vehiculoId || ""}
-                  onChange={(e) => handleActualizarEstado(pedidoParaEditar.estado, e.target.value)}
+                  onChange={(e) =>
+                    handleActualizarEstado(pedidoParaEditar.estado, e.target.value || null)
+                  }
                   className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white"
                 >
                   <option value="">(Sin camión asignado)</option>
@@ -380,7 +452,10 @@ export default function PedidosPage() {
             <div className="flex justify-end pt-4 mt-4 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setModalEstadoAbierto(false)}
+                onClick={() => {
+                  setModalEstadoAbierto(false);
+                  setEditarEntregaParcial(false);
+                }}
                 className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
               >
                 Cerrar

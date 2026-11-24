@@ -1,9 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { obtenerResumenInventario } from "@/lib/services/inventory";
+import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "DASHBOARD")) {
+      return NextResponse.json({ error: "Permiso denegado para consultar el dashboard." }, { status: 403 });
+    }
+
     const stock = await obtenerResumenInventario();
     const productosTotales = stock.length;
 

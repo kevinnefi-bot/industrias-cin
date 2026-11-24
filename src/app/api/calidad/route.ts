@@ -4,7 +4,10 @@ import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permissions";
 import { registrarAuditoria } from "@/lib/services/audit";
-import { registrarMovimientoTransaccional } from "@/lib/services/inventory";
+import {
+  conTransaccionSerializable,
+  registrarMovimientoEnTransaccion,
+} from "@/lib/services/inventory";
 
 const RegistroDanoSchema = z.object({
   productoId: z.string().uuid(),
@@ -103,36 +106,51 @@ export async function POST(req: NextRequest) {
     // Costo de pérdida estimado = paquetes * costo de producción
     const costoEstimado = Number((data.cantidadPaquetes * producto.costoProduccionPaquete).toFixed(2));
 
-    const nuevoDano = await prisma.registroDano.create({
-      data: {
-        productoId: data.productoId,
-        cantidadPaquetes: data.cantidadPaquetes,
-        tipoDano: data.tipoDano,
-        etapaIncidencia: data.etapaIncidencia,
-        zonaAfectada: data.zonaAfectada || null,
-        vehiculoId: data.vehiculoId || null,
-        costoPerdidaEstimado: costoEstimado,
-        motivo: data.motivo,
-        accionCorrectiva: data.accionCorrectiva || null,
-        origenCosto: "ESTIMADO",
-        usuarioResponsableId: session.id,
-      },
-    });
-
-    // Si se marca para descontar de inventario y se especifica almacén
+    // Si se solicita descontar inventario, debe existir un almacén concreto.
+    let almacenId: string | undefined;
     if (data.descontarDeInventario) {
-      const almId = data.almacenId || (await prisma.almacen.findFirst({ where: { codigo: "ALM-CENTRAL" } }))?.id;
-      if (almId) {
-        await registrarMovimientoTransaccional({
-          productoId: data.productoId,
-          almacenId: almId,
-          tipo: "DANADO",
-          cantidadPaquetes: data.cantidadPaquetes,
-          motivo: `Merma por calidad: ${data.tipoDano} en etapa ${data.etapaIncidencia}`,
-          usuarioId: session.id,
+      const almacen = data.almacenId
+        ? { id: data.almacenId }
+        : await prisma.almacen.findFirst({ where: { codigo: "ALM-CENTRAL" }, select: { id: true } });
+      if (!almacen) {
+        return NextResponse.json(
+          { error: "No existe un almacén para descontar el daño del inventario." },
+          { status: 400 }
+        );
+      }
+      almacenId = almacen.id;
+    }
+
+    const nuevoDano = await conTransaccionSerializable(
+      async (tx) => {
+        if (almacenId) {
+          await registrarMovimientoEnTransaccion(tx, {
+            productoId: data.productoId,
+            almacenId,
+            tipo: "DANADO",
+            cantidadPaquetes: data.cantidadPaquetes,
+            motivo: `Merma por calidad: ${data.tipoDano} en etapa ${data.etapaIncidencia}`,
+            usuarioId: session.id,
+          });
+        }
+
+        return tx.registroDano.create({
+          data: {
+            productoId: data.productoId,
+            cantidadPaquetes: data.cantidadPaquetes,
+            tipoDano: data.tipoDano,
+            etapaIncidencia: data.etapaIncidencia,
+            zonaAfectada: data.zonaAfectada || null,
+            vehiculoId: data.vehiculoId || null,
+            costoPerdidaEstimado: costoEstimado,
+            motivo: data.motivo,
+            accionCorrectiva: data.accionCorrectiva || null,
+            origenCosto: "ESTIMADO",
+            usuarioResponsableId: session.id,
+          },
         });
       }
-    }
+    );
 
     await registrarAuditoria({
       usuarioId: session.id,
@@ -147,7 +165,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, dano: nuevoDano }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error al registrar daño.";
+    const status = message.includes("Stock insuficiente") ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

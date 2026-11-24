@@ -7,7 +7,11 @@ async function main() {
   console.log("=== INICIANDO SEED SEGURO E IDEMPOTENTE - INDUSTRIAS CIN ===");
 
   // 1. Usuarios con Roles del Sistema (Upsert no destructivo)
-  const passwordHash = await bcrypt.hash("cin123456", 10);
+  const initialPassword = process.env.INITIAL_USER_PASSWORD;
+  if (!initialPassword || initialPassword.length < 16) {
+    throw new Error("INITIAL_USER_PASSWORD debe configurarse con al menos 16 caracteres.");
+  }
+  const passwordHash = await bcrypt.hash(initialPassword, 12);
 
   const usuariosData = [
     { email: "admin@cin.com", nombreCompleto: "Ing. Carlos Mendoza (Admin)", rol: "ADMINISTRADOR" },
@@ -20,12 +24,21 @@ async function main() {
 
   const usuariosCreados: Record<string, any> = {};
   for (const u of usuariosData) {
+    const usuarioExistente = await prisma.usuario.findUnique({
+      where: { email: u.email },
+      select: { passwordHash: true },
+    });
+    const reemplazarClaveInicial =
+      usuarioExistente &&
+      await bcrypt.compare("cin123456", usuarioExistente.passwordHash);
+
     const user = await prisma.usuario.upsert({
       where: { email: u.email },
       update: {
         nombreCompleto: u.nombreCompleto,
         rol: u.rol,
         activo: true,
+        ...(reemplazarClaveInicial ? { passwordHash } : {}),
       },
       create: {
         email: u.email,

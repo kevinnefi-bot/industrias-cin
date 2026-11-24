@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Boxes, Cpu, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { DataOriginBadge } from "@/components/common/DataOriginBadge";
+import { DataOriginBadge } from "../../../../components/common/DataOriginBadge";
 import Link from "next/link";
 
 export default function AlmacenesPage() {

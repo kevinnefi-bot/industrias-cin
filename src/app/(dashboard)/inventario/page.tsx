@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Package, Plus, RefreshCw, ArrowUpRight, ArrowDownLeft, AlertCircle, FileSpreadsheet } from "lucide-react";
-import { DataOriginBadge } from "@/components/common/DataOriginBadge";
+import { DataOriginBadge } from "../../../components/common/DataOriginBadge";
 
 export default function InventarioPage() {
   const [movimientos, setMovimientos] = useState<any[]>([]);
@@ -21,7 +21,7 @@ export default function InventarioPage() {
     motivo: "",
   });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [resInv, resAlm] = await Promise.all([
@@ -49,11 +49,11 @@ export default function InventarioPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [form.almacenId, form.productoId]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleCrearMovimiento = async (e: React.FormEvent) => {
     e.preventDefault();

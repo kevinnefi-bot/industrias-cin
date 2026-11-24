@@ -6,6 +6,18 @@ import { registrarAuditoria } from "@/lib/services/audit";
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (
+      !tienePermiso(session.rol, "DISTRIBUCION") &&
+      !tienePermiso(session.rol, "PEDIDOS") &&
+      !tienePermiso(session.rol, "CALIDAD")
+    ) {
+      return NextResponse.json({ error: "Permiso denegado para consultar la flota." }, { status: 403 });
+    }
+
     const vehiculos = await prisma.vehiculo.findMany({
       include: {
         pedidos: {

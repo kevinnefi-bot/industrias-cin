@@ -1,31 +1,30 @@
 import prisma from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
 import { ProductStockInfo, TipoMovimiento, OrigenDato } from "@/types";
 
-export async function obtenerStockPorProducto(productoId: string): Promise<number> {
+const TIPOS_ENTRADA = new Set(["ENTRADA_PRODUCCION", "DEVOLUCION", "AJUSTE_POSITIVO", "REPOSICION"]);
+const TIPOS_SALIDA = new Set(["SALIDA_PEDIDO", "DANADO", "AJUSTE_NEGATIVO"]);
+
+function aplicarMovimiento(balance: number, tipo: string, cantidad: number): number {
+  if (TIPOS_ENTRADA.has(tipo)) return balance + cantidad;
+  if (TIPOS_SALIDA.has(tipo)) return balance - cantidad;
+  return balance;
+}
+
+export async function obtenerStockPorProducto(
+  productoId: string,
+  almacenId?: string
+): Promise<number> {
   const movimientos = await prisma.movimientoInventario.findMany({
-    where: { productoId },
+    where: { productoId, ...(almacenId ? { almacenId } : {}) },
     select: { tipo: true, cantidadPaquetes: true },
   });
 
-  let balance = 0;
-  for (const m of movimientos) {
-    if (
-      m.tipo === "ENTRADA_PRODUCCION" ||
-      m.tipo === "DEVOLUCION" ||
-      m.tipo === "AJUSTE_POSITIVO" ||
-      m.tipo === "REPOSICION"
-    ) {
-      balance += m.cantidadPaquetes;
-    } else if (
-      m.tipo === "SALIDA_PEDIDO" ||
-      m.tipo === "DANADO" ||
-      m.tipo === "AJUSTE_NEGATIVO"
-    ) {
-      balance -= m.cantidadPaquetes;
-    }
-    // RESERVA y TRANSFERENCIA se tratan de acuerdo a su almacén origen/destino
-  }
-  return balance;
+  return movimientos.reduce(
+    (balance, movimiento) =>
+      aplicarMovimiento(balance, movimiento.tipo, movimiento.cantidadPaquetes),
+    0
+  );
 }
 
 export async function obtenerResumenInventario(): Promise<ProductStockInfo[]> {
@@ -38,23 +37,12 @@ export async function obtenerResumenInventario(): Promise<ProductStockInfo[]> {
   });
 
   // Movimientos agrupados por producto
-  const balances: Record<string, number> = {};
+  const balances = new Map<string, number>();
   for (const m of todosMovimientos) {
-    if (!balances[m.productoId]) balances[m.productoId] = 0;
-    if (
-      m.tipo === "ENTRADA_PRODUCCION" ||
-      m.tipo === "DEVOLUCION" ||
-      m.tipo === "AJUSTE_POSITIVO" ||
-      m.tipo === "REPOSICION"
-    ) {
-      balances[m.productoId] += m.cantidadPaquetes;
-    } else if (
-      m.tipo === "SALIDA_PEDIDO" ||
-      m.tipo === "DANADO" ||
-      m.tipo === "AJUSTE_NEGATIVO"
-    ) {
-      balances[m.productoId] -= m.cantidadPaquetes;
-    }
+    balances.set(
+      m.productoId,
+      aplicarMovimiento(balances.get(m.productoId) || 0, m.tipo, m.cantidadPaquetes)
+    );
   }
 
   // Stock comprometido en pedidos pendientes o en preparación
@@ -78,7 +66,7 @@ export async function obtenerResumenInventario(): Promise<ProductStockInfo[]> {
   }
 
   return productos.map((prod) => {
-    const stockActual = balances[prod.id] || 0;
+    const stockActual = balances.get(prod.id) || 0;
     const stockComprometido = comprometidos[prod.id] || 0;
     const stockDisponible = Math.max(0, stockActual - stockComprometido);
 
@@ -116,7 +104,7 @@ export async function obtenerResumenInventario(): Promise<ProductStockInfo[]> {
   });
 }
 
-export async function registrarMovimientoTransaccional(data: {
+type MovimientoInventarioData = {
   productoId: string;
   almacenId: string;
   tipo: TipoMovimiento;
@@ -125,87 +113,94 @@ export async function registrarMovimientoTransaccional(data: {
   usuarioId: string;
   origenDato?: OrigenDato;
   pedidoId?: string;
-}) {
-  if (data.cantidadPaquetes <= 0) {
+};
+
+export async function conTransaccionSerializable<T>(
+  work: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  for (let intento = 0; intento < 3; intento++) {
+    try {
+      return await prisma.$transaction(work, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      const esConflictoSerializable =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+      if (!esConflictoSerializable || intento === 2) throw error;
+    }
+  }
+  throw new Error("No se pudo completar la transacción después de varios intentos.");
+}
+
+export async function registrarMovimientoEnTransaccion(
+  tx: Prisma.TransactionClient,
+  data: MovimientoInventarioData
+) {
+  if (!Number.isInteger(data.cantidadPaquetes) || data.cantidadPaquetes <= 0) {
     throw new Error("La cantidad de paquetes debe ser estrictamente mayor a 0.");
   }
+  if (data.tipo === "TRANSFERENCIA" || data.tipo === "RESERVA") {
+    throw new Error(`El tipo de movimiento ${data.tipo} aún no está implementado.`);
+  }
 
-  return await prisma.$transaction(async (tx) => {
-    // Verificación de producto
-    const producto = await tx.producto.findUnique({
-      where: { id: data.productoId },
-    });
-    if (!producto) {
-      throw new Error(`Producto con ID ${data.productoId} no encontrado.`);
-    }
-
-    // Verificación de almacén
-    const almacen = await tx.almacen.findUnique({
-      where: { id: data.almacenId },
-    });
-    if (!almacen) {
-      throw new Error(`Almacén con ID ${data.almacenId} no encontrado.`);
-    }
-
-    // Regla contable: Impedir stock negativo si es movimiento de salida
-    const esSalida =
-      data.tipo === "SALIDA_PEDIDO" ||
-      data.tipo === "DANADO" ||
-      data.tipo === "AJUSTE_NEGATIVO";
-
-    if (esSalida) {
-      const movimientos = await tx.movimientoInventario.findMany({
-        where: { productoId: data.productoId },
-        select: { tipo: true, cantidadPaquetes: true },
-      });
-
-      let stockActual = 0;
-      for (const m of movimientos) {
-        if (
-          m.tipo === "ENTRADA_PRODUCCION" ||
-          m.tipo === "DEVOLUCION" ||
-          m.tipo === "AJUSTE_POSITIVO" ||
-          m.tipo === "REPOSICION"
-        ) {
-          stockActual += m.cantidadPaquetes;
-        } else if (
-          m.tipo === "SALIDA_PEDIDO" ||
-          m.tipo === "DANADO" ||
-          m.tipo === "AJUSTE_NEGATIVO"
-        ) {
-          stockActual -= m.cantidadPaquetes;
-        }
-      }
-
-      if (stockActual < data.cantidadPaquetes) {
-        throw new Error(
-          `Operación denegada por consistencia contable: Stock insuficiente para ${producto.nombre}. Stock actual: ${stockActual} paquetes, Solicitado a egresar: ${data.cantidadPaquetes} paquetes.`
-        );
-      }
-    }
-
-    const volumenTotalLitros =
-      data.cantidadPaquetes * producto.botellasPorPaquete * producto.volumenLitros;
-
-    const movimiento = await tx.movimientoInventario.create({
-      data: {
-        productoId: data.productoId,
-        almacenId: data.almacenId,
-        tipo: data.tipo,
-        cantidadPaquetes: data.cantidadPaquetes,
-        volumenTotalLitros,
-        motivo: data.motivo,
-        origenDato: data.origenDato || "REAL_FUTURO",
-        usuarioId: data.usuarioId,
-        pedidoId: data.pedidoId || null,
-      },
-      include: {
-        producto: true,
-        almacen: true,
-        usuario: true,
-      },
-    });
-
-    return movimiento;
+  const producto = await tx.producto.findUnique({
+    where: { id: data.productoId },
   });
+  if (!producto) {
+    throw new Error(`Producto con ID ${data.productoId} no encontrado.`);
+  }
+
+  const almacen = await tx.almacen.findUnique({
+    where: { id: data.almacenId },
+  });
+  if (!almacen) {
+    throw new Error(`Almacén con ID ${data.almacenId} no encontrado.`);
+  }
+
+  const esSalida = TIPOS_SALIDA.has(data.tipo);
+
+  if (esSalida) {
+    const movimientos = await tx.movimientoInventario.findMany({
+      where: { productoId: data.productoId, almacenId: data.almacenId },
+      select: { tipo: true, cantidadPaquetes: true },
+    });
+
+    const stockActual = movimientos.reduce(
+      (balance, movimiento) =>
+        aplicarMovimiento(balance, movimiento.tipo, movimiento.cantidadPaquetes),
+      0
+    );
+
+    if (stockActual < data.cantidadPaquetes) {
+      throw new Error(
+        `Operación denegada por consistencia contable: Stock insuficiente para ${producto.nombre} en el almacén ${almacen.nombre}. Stock actual: ${stockActual} paquetes, Solicitado a egresar: ${data.cantidadPaquetes} paquetes.`
+      );
+    }
+  }
+
+  const volumenTotalLitros =
+    data.cantidadPaquetes * producto.botellasPorPaquete * producto.volumenLitros;
+
+  return tx.movimientoInventario.create({
+    data: {
+      productoId: data.productoId,
+      almacenId: data.almacenId,
+      tipo: data.tipo,
+      cantidadPaquetes: data.cantidadPaquetes,
+      volumenTotalLitros,
+      motivo: data.motivo,
+      origenDato: data.origenDato || "REAL_FUTURO",
+      usuarioId: data.usuarioId,
+      pedidoId: data.pedidoId || null,
+    },
+    include: {
+      producto: true,
+      almacen: true,
+      usuario: true,
+    },
+  });
+}
+
+export async function registrarMovimientoTransaccional(data: MovimientoInventarioData) {
+  return conTransaccionSerializable((tx) => registrarMovimientoEnTransaccion(tx, data));
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ProductStockInfo, LineaProducto } from "@/types";
-import { DataOriginBadge } from "@/components/common/DataOriginBadge";
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataOriginBadge } from "../../../components/common/DataOriginBadge";
+import { EmptyState } from "../../../components/common/EmptyState";
 import {
   Wine,
   Search,
@@ -40,7 +40,7 @@ export default function CatalogoPage() {
     stockMaximoPaquetes: 500,
   });
 
-  const fetchProductos = async () => {
+  const fetchProductos = useCallback(async () => {
     try {
       setLoading(true);
       let url = `/api/productos?busqueda=${encodeURIComponent(busqueda)}`;
@@ -55,11 +55,11 @@ export default function CatalogoPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [busqueda, lineaFiltro]);
 
   useEffect(() => {
     fetchProductos();
-  }, [lineaFiltro]);
+  }, [fetchProductos]);
 
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault();

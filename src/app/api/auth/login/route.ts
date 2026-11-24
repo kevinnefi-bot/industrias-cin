@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db/prisma";
 import { createSessionToken, getSessionCookieOptions } from "@/lib/auth/session";
+import { esRolUsuario } from "@/lib/auth/permissions";
 import { registrarAuditoria } from "@/lib/services/audit";
 
 export async function POST(req: NextRequest) {
@@ -33,12 +34,16 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+    if (!esRolUsuario(usuario.rol)) {
+      console.error(`Usuario con rol inválido en la base de datos: ${usuario.id}`);
+      return NextResponse.json({ error: "La cuenta no tiene un rol válido." }, { status: 500 });
+    }
 
     const sessionPayload = {
       id: usuario.id,
       email: usuario.email,
       nombreCompleto: usuario.nombreCompleto,
-      rol: usuario.rol as any,
+      rol: usuario.rol,
     };
 
     const token = await createSessionToken(sessionPayload);

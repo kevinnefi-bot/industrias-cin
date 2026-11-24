@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ShieldAlert,
   Plus,
@@ -10,7 +10,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
 } from "lucide-react";
-import { DataOriginBadge } from "@/components/common/DataOriginBadge";
+import { DataOriginBadge } from "../../../components/common/DataOriginBadge";
 import Link from "next/link";
 
 export default function CalidadPage() {
@@ -36,7 +36,7 @@ export default function CalidadPage() {
     descontarDeInventario: true,
   });
 
-  const fetchCalidad = async () => {
+  const fetchCalidad = useCallback(async () => {
     try {
       setLoading(true);
       const [resCal, resProd, resVeh, resAlm] = await Promise.all([
@@ -68,11 +68,11 @@ export default function CalidadPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [form.almacenId, form.productoId]);
 
   useEffect(() => {
     fetchCalidad();
-  }, []);
+  }, [fetchCalidad]);
 
   const handleCrearDano = async (e: React.FormEvent) => {
     e.preventDefault();

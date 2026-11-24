@@ -24,6 +24,18 @@ const ProductSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (
+      !tienePermiso(session.rol, "CATALOGO") &&
+      !tienePermiso(session.rol, "PEDIDOS") &&
+      !tienePermiso(session.rol, "CALIDAD")
+    ) {
+      return NextResponse.json({ error: "Permiso denegado para consultar productos." }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const busqueda = searchParams.get("busqueda")?.toLowerCase();
     const linea = searchParams.get("linea");

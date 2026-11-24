@@ -68,6 +68,10 @@ export const PERMISOS_POR_ROL: Record<RolUsuario, ModuloSistema[]> = {
   ],
 };
 
+export function esRolUsuario(rol: string): rol is RolUsuario {
+  return Object.prototype.hasOwnProperty.call(PERMISOS_POR_ROL, rol);
+}
+
 export function tienePermiso(rol: RolUsuario, modulo: ModuloSistema): boolean {
   const modulosPermitidos = PERMISOS_POR_ROL[rol];
   return modulosPermitidos ? modulosPermitidos.includes(modulo) : false;

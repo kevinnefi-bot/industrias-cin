@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { tienePermiso } from "@/lib/auth/permissions";
 import { obtenerResumenInventario } from "@/lib/services/inventory";
+
+type ReportRow = Record<string, string | number>;
+
+function appendWorksheet(
+  workbook: ExcelJS.Workbook,
+  name: string,
+  headers: string[],
+  rows: ReportRow[]
+) {
+  const worksheet = workbook.addWorksheet(name);
+  worksheet.columns = headers.map((header) => ({
+    header,
+    key: header,
+    width: Math.min(Math.max(header.length + 4, 16), 40),
+  }));
+  worksheet.addRows(rows.map((row) => headers.map((header) => row[header] ?? "")));
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,7 +38,7 @@ export async function GET(req: NextRequest) {
     const tipoReporte = searchParams.get("tipo") || "INVENTARIO_GENERAL";
     const fechaGen = new Date().toISOString().replace("T", " ").substring(0, 19);
 
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     if (tipoReporte === "INVENTARIO_GENERAL" || tipoReporte === "COMPLETO") {
       const stock = await obtenerResumenInventario();
@@ -44,8 +63,18 @@ export async function GET(req: NextRequest) {
         "Origen de Costo": s.origenCosto,
         "Fecha Reporte": fechaGen,
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, "Inventario y Stock");
+      appendWorksheet(
+        workbook,
+        "Inventario y Stock",
+        [
+          "SKU", "Producto", "Línea", "Sabor", "Presentación", "Botellas/Paquete",
+          "Stock Actual (Paquetes)", "Stock en Botellas", "Stock en Litros", "Stock Disponible",
+          "Stock Comprometido", "Stock Mínimo", "Stock Máximo", "Precio Paquete (PEN)",
+          "Costo Producción (PEN)", "Valorizado Stock (PEN)", "Estado Stock", "Origen de Costo",
+          "Fecha Reporte",
+        ],
+        rows
+      );
     }
 
     if (tipoReporte === "PEDIDOS_DISTRIBUCION" || tipoReporte === "COMPLETO") {
@@ -71,8 +100,16 @@ export async function GET(req: NextRequest) {
         "Origen Datos": "REAL_FUTURO",
         "Fecha Generación": fechaGen,
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, "Pedidos y Despachos");
+      appendWorksheet(
+        workbook,
+        "Pedidos y Despachos",
+        [
+          "Código", "Cliente", "Zona", "Estado", "Vehículo", "Fecha Solicitud", "Fecha Prometida",
+          "Fecha Despacho", "Fecha Entrega", "Retraso Minutos", "Total Paquetes", "Origen Datos",
+          "Fecha Generación",
+        ],
+        rows
+      );
     }
 
     if (tipoReporte === "CALIDAD_DANOS" || tipoReporte === "COMPLETO") {
@@ -95,22 +132,35 @@ export async function GET(req: NextRequest) {
         "Origen de Costo": d.origenCosto,
         "Fecha Generación": fechaGen,
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, "Calidad y Daños");
+      appendWorksheet(
+        workbook,
+        "Calidad y Daños",
+        [
+          "Fecha Incidencia", "Producto", "Paquetes Dañados", "Tipo Daño", "Etapa Incidencia",
+          "Zona", "Vehículo", "Costo Pérdida Estimado (PEN)", "Motivo / Causa Raíz",
+          "Acción Correctiva", "Origen de Costo", "Fecha Generación",
+        ],
+        rows
+      );
     }
 
     // Hoja de Metadatos y Origen de Datos
-    const metaWs = XLSX.utils.json_to_sheet([
-      { "Empresa": "Industrias CIN", "Líneas": "Hervidos y Jugos (Bebidas No Carbonatadas)" },
-      { "Empresa": "Fecha Generación", "Líneas": fechaGen },
-      { "Empresa": "Periodo", "Líneas": "Operativo Actual (Mes en Curso)" },
-      { "Empresa": "Clasificación de Datos", "Líneas": "Estrictamente diferenciado entre RECOPILADO, ESTIMADO y REAL_FUTURO" },
-    ]);
-    XLSX.utils.book_append_sheet(wb, metaWs, "Metadatos y Origen");
+    appendWorksheet(
+      workbook,
+      "Metadatos y Origen",
+      ["Campo", "Valor"],
+      [
+        { Campo: "Empresa", Valor: "Industrias CIN" },
+        { Campo: "Líneas", Valor: "Hervidos y Jugos (Bebidas No Carbonatadas)" },
+        { Campo: "Fecha Generación", Valor: fechaGen },
+        { Campo: "Periodo", Valor: "Operativo Actual (Mes en Curso)" },
+        { Campo: "Clasificación de Datos", Valor: "RECOPILADO, ESTIMADO y REAL_FUTURO" },
+      ]
+    );
 
-    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    const buffer = await workbook.xlsx.writeBuffer();
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

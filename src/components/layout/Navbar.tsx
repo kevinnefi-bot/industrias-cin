@@ -36,15 +36,12 @@ export const Navbar: React.FC<Props> = ({ user }) => {
   const handleCambiarRol = async (targetEmail: string) => {
     try {
       setCambiando(true);
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: targetEmail, password: "cin123456" }),
-      });
-      if (res.ok) {
-        setMenuAbierto(false);
-        router.refresh();
-      }
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("No se pudo cerrar la sesión actual.");
+      window.sessionStorage.setItem("cin_login_email", targetEmail);
+      setMenuAbierto(false);
+      router.push("/login");
+      router.refresh();
     } catch (e) {
       console.error(e);
     } finally {

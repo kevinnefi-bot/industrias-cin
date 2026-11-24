@@ -23,8 +23,8 @@ Esta plataforma web empresarial ha sido diseñada y construida para **Industrias
 
 ---
 
-## 2. Roles y Credenciales de Acceso Rápido
-La plataforma cuenta con un sistema RBAC (Role-Based Access Control) con 6 roles configurados. Todos los usuarios tienen la contraseña estándar: `cin123456`.
+## 2. Roles y Acceso
+La plataforma cuenta con un sistema RBAC (Role-Based Access Control) con 6 roles configurados. Las contraseñas no se publican en el repositorio. Render genera `INITIAL_USER_PASSWORD` de forma segura; el seed solo reemplaza contraseñas heredadas de la versión de demostración y no sobrescribe contraseñas que ya fueron cambiadas.
 
 | Rol | Correo Electrónico | Alcance de Permisos |
 |---|---|---|
@@ -35,23 +35,23 @@ La plataforma cuenta con un sistema RBAC (Role-Based Access Control) con 6 roles
 | **Distribución** | `distribucion@cin.com` | Gestión de pedidos, flota de 6 camiones, rutas y optimización de transporte (B, D). |
 | **Calidad** | `calidad@cin.com` | Registro de mermas, causas raíz, costos estimados y modelos de mitigación (C). |
 
-> *Nota:* Desde el selector rápido en la barra superior (Navbar) es posible alternar entre cualquiera de los 6 roles con un solo clic para comprobar vistas y permisos.
+> *Nota:* El selector rápido de roles solo aparece en desarrollo; volverá al inicio de sesión para validar las credenciales del usuario seleccionado. En una base nueva, las cuentas iniciales usan la clave `INITIAL_USER_PASSWORD`; consúltala en las variables de entorno de Render y no la publiques.
 
 ---
 
 ## 3. Arquitectura y Tecnologías
-- **Frontend / Full Stack:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + Lucide Icons + Recharts.
-- **Base de Datos & ORM:** Prisma ORM con SQLite para ejecución local zero-config (`prisma/dev.db`) y scripts DDL completos con RLS para Supabase (`prisma/supabase_migrations.sql`).
+- **Frontend / Full Stack:** Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS + Lucide Icons + Recharts.
+- **Base de Datos & ORM:** Prisma ORM con SQLite para ejecución local (`prisma/dev.db`) y PostgreSQL para Render, con migraciones en `prisma/migrations`.
 - **Seguridad:** Tokens JWT firmados con `jose` en cookies HTTP-only `SameSite=Lax`, contraseñas hasheadas con `bcryptjs`.
 - **Motor Matemático (IO):** Implementación nativa de alta precisión en TypeScript de Simplex Primal de Dos Fases, Vogel VAM, Branch & Bound 0-1, EOQ/ROP estocástico, Algoritmo Húngaro Kuhn-Munkres, Forward/Backward pass CPM y Criterios de Decisión (VME, Wald, Maximax, Hurwicz, Savage).
-- **Reportes:** Generación nativa en Microsoft Excel (`xlsx`) y Adobe PDF (`jspdf` + `jspdf-autotable`).
+- **Reportes:** Generación de archivos Microsoft Excel (`exceljs`) y Adobe PDF (`jspdf` + `jspdf-autotable`).
 
 ---
 
 ## 4. Instalación y Puesta en Marcha
 
 ### Prerrequisitos:
-- Node.js v18+ instalado.
+- Node.js v20.9+ instalado.
 
 ### Pasos:
 1. Clonar el repositorio y acceder al directorio:
@@ -62,15 +62,16 @@ La plataforma cuenta con un sistema RBAC (Role-Based Access Control) con 6 roles
    ```bash
    npm install
    ```
-3. Generar cliente Prisma y sincronizar la base de datos:
+3. Configurar variables locales copiando `.env.example` a `.env` (en PowerShell: `Copy-Item .env.example .env`) y reemplazando `JWT_SECRET` e `INITIAL_USER_PASSWORD` por valores propios y aleatorios. `INITIAL_USER_PASSWORD` debe tener al menos 16 caracteres. Render genera ambos secretos automáticamente según `render.yaml`.
+4. Generar cliente Prisma y sincronizar la base de datos:
    ```bash
    npx prisma db push
    ```
-4. Poblar datos iniciales autorizados (Catálogo CIN, almacenes, 6 camiones y usuarios):
+5. Poblar datos iniciales autorizados (Catálogo CIN, almacenes, 6 camiones y usuarios):
    ```bash
    npx tsx prisma/seed.ts
    ```
-5. Iniciar servidor de desarrollo:
+6. Iniciar servidor de desarrollo:
    ```bash
    npm run dev
    ```

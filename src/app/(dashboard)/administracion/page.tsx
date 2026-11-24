@@ -14,7 +14,7 @@ export default function AdministracionPage() {
   const [form, setForm] = useState({
     email: "",
     nombreCompleto: "",
-    password: "cin" + Math.floor(100000 + Math.random() * 900000),
+    password: "",
     rol: "PRODUCCION" as RolUsuario,
   });
 
@@ -277,10 +277,11 @@ export default function AdministracionPage() {
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Contraseña Inicial</label>
                 <input
-                  type="text"
+                  type="password"
                   required
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  autoComplete="new-password"
                   className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg font-mono"
                 />
               </div>
