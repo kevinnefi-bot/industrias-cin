@@ -2,6 +2,11 @@
 **Sistema Integral de Gestión Operativa y Centro de Optimización Matemática**
 **Líneas:** Hervidos y Jugos (Bebidas No Carbonatadas)
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kevinnefi-bot/industrias-cin)
+
+- **Repositorio Oficial en GitHub:** [https://github.com/kevinnefi-bot/industrias-cin](https://github.com/kevinnefi-bot/industrias-cin)
+- **URL Oficial de Despliegue en Render:** [https://industrias-cin.onrender.com](https://industrias-cin.onrender.com)
+
 ---
 
 ## 1. Visión General
