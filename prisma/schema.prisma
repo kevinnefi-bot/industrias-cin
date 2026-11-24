@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  nombreCompleto String
+  passwordHash   String
+  rol            String    // ADMINISTRADOR, GERENCIA, INVENTARIO, PRODUCCION, DISTRIBUCION, CALIDAD
+  activo         Boolean   @default(true)
+  creadoEn       DateTime  @default(now())
+  actualizadoEn  DateTime  @updatedAt
+
+  movimientos    MovimientoInventario[]
+  pedidos        Pedido[]               @relation("PedidosRegistrados")
+  danos          RegistroDano[]
+  optimizaciones OptimizacionEjecucion[]
+  auditorias     AuditoriaAccion[]
+
+  @@map("usuarios")
+}
+
+model Producto {
+  id                    String    @id @default(uuid())
+  sku                   String    @unique
+  nombre                String
+  linea                 String    // HERVIDOS, JUGOS
+  sabor                 String
+  presentacion          String    // ej. "Botella 500ml (Pack x6)", "Botella 1L (Pack x6)"
+  volumenLitros         Float     // Volumen individual por botella
+  botellasPorPaquete    Int       @default(6)
+  precioPaquete         Float
+  costoProduccionPaquete Float
+  stockMinimoPaquetes   Int       @default(10)
+  stockMaximoPaquetes   Int       @default(500)
+  activo                Boolean   @default(true)
+  origenCosto           String    @default("RECOPILADO") // RECOPILADO, ESTIMADO, REAL_FUTURO
+  creadoEn              DateTime  @default(now())
+  actualizadoEn         DateTime  @updatedAt
+
+  movimientos           MovimientoInventario[]
+  pedidosDetalle        PedidoDetalle[]
+  danos                 RegistroDano[]
+
+  @@index([linea, activo])
+  @@index([sku])
+  @@map("productos")
+}
+
+model Almacen {
+  id                    String    @id @default(uuid())
+  codigo                String    @unique
+  nombre                String
+  zonaPlanta            String    // "Nave A - Hervidos", "Nave B - Jugos", "Nave C - Producto Terminado"
+  capacidadMaxPaquetes  Int
+  capacidadVolumetricaM3 Float
+  origenCapacidad       String    @default("ESTIMADO") // RECOPILADO, ESTIMADO
+  activo                Boolean   @default(true)
+  creadoEn              DateTime  @default(now())
+
+  movimientos           MovimientoInventario[]
+
+  @@map("almacenes")
+}
+
+model MovimientoInventario {
+  id                 String    @id @default(uuid())
+  productoId         String
+  almacenId          String
+  tipo               String    // ENTRADA_PRODUCCION, SALIDA_PEDIDO, DEVOLUCION, DANADO, AJUSTE_POSITIVO, AJUSTE_NEGATIVO, REPOSICION, TRANSFERENCIA, RESERVA
+  cantidadPaquetes   Int
+  volumenTotalLitros Float
+  motivo             String
+  origenDato         String    @default("REAL_FUTURO") // RECOPILADO, ESTIMADO, REAL_FUTURO
+  usuarioId          String
+  pedidoId           String?
+  fechaMovimiento    DateTime  @default(now())
+  creadoEn           DateTime  @default(now())
+
+  producto           Producto  @relation(fields: [productoId], references: [id], onDelete: Restrict)
+  almacen            Almacen   @relation(fields: [almacenId], references: [id], onDelete: Restrict)
+  usuario            Usuario   @relation(fields: [usuarioId], references: [id])
+  pedido             Pedido?   @relation(fields: [pedidoId], references: [id])
+
+  @@index([productoId, fechaMovimiento])
+  @@index([tipo])
+  @@map("movimientos_inventario")
+}
+
+model Vehiculo {
+  id                    String    @id @default(uuid())
+  placa                 String    @unique
+  identificador         String    // "Camión 1 - C-01" hasta "Camión 6 - C-06"
+  capacidadCargaKg      Float
+  capacidadVolumetricaM3 Float
+  capacidadMaxPaquetes  Int
+  costoOperativoKm      Float
+  zonaAsignada          String    // Norte, Sur, Centro, Multi-zona
+  disponible            Boolean   @default(true)
+  estadoMantenimiento   String    @default("OPERATIVO") // OPERATIVO, EN_MANTENIMIENTO, FUERA_DE_SERVICIO
+  origenDatos           String    @default("ESTIMADO")
+  actualizadoEn         DateTime  @updatedAt
+
+  pedidos               Pedido[]
+  danos                 RegistroDano[]
+
+  @@map("vehiculos")
+}
+
+model Pedido {
+  id                     String    @id @default(uuid())
+  codigo                 String    @unique
+  cliente                String
+  zonaDestino            String    // Norte, Sur, Centro
+  direccionEntrega       String
+  fechaSolicitud         DateTime  @default(now())
+  fechaPrometidaOriginal DateTime  // Conservada siempre como SLA de referencia
+  fechaDespachoReal      DateTime?
+  fechaEntregaReal       DateTime?
+  vehiculoId             String?
+  estado                 String    @default("PENDIENTE") // PENDIENTE, CONFIRMADO, EN_PREPARACION, LISTO, EN_TRANSITO, ENTREGADO, ENTREGADO_PARCIALMENTE, RETRASADO, CANCELADO
+  observaciones          String?
+  usuarioRegistroId      String
+  creadoEn               DateTime  @default(now())
+  actualizadoEn          DateTime  @updatedAt
+
+  vehiculo               Vehiculo? @relation(fields: [vehiculoId], references: [id])
+  usuarioRegistro        Usuario   @relation("PedidosRegistrados", fields: [usuarioRegistroId], references: [id])
+  detalles               PedidoDetalle[]
+  movimientos            MovimientoInventario[]
+
+  @@index([estado, zonaDestino])
+  @@index([fechaPrometidaOriginal])
+  @@map("pedidos")
+}
+
+model PedidoDetalle {
+  id                  String   @id @default(uuid())
+  pedidoId            String
+  productoId          String
+  paquetesSolicitados Int
+  paquetesPreparados  Int      @default(0)
+  paquetesEnviados    Int      @default(0)
+  paquetesEntregados  Int      @default(0)
+  precioUnitarioPaquete Float
+
+  pedido              Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto            Producto @relation(fields: [productoId], references: [id], onDelete: Restrict)
+
+  @@map("pedidos_detalle")
+}
+
+model RegistroDano {
+  id                    String    @id @default(uuid())
+  productoId            String
+  cantidadPaquetes      Int
+  tipoDano              String    // Botella rota, Sello roto, Etiqueta defectuosa, Fuga, Embalaje danado
+  etapaIncidencia       String    // Produccion, Almacen, Carga, Transito, Descarga
+  zonaAfectada          String?   // Norte, Sur, Centro, Planta
+  vehiculoId            String?
+  fechaIncidencia       DateTime  @default(now())
+  costoPerdidaEstimado  Float
+  motivo                String
+  accionCorrectiva      String?
+  origenCosto           String    @default("ESTIMADO")
+  usuarioResponsableId  String
+  creadoEn              DateTime  @default(now())
+
+  producto              Producto  @relation(fields: [productoId], references: [id], onDelete: Restrict)
+  vehiculo              Vehiculo? @relation(fields: [vehiculoId], references: [id])
+  usuarioResponsable    Usuario   @relation(fields: [usuarioResponsableId], references: [id])
+
+  @@index([etapaIncidencia])
+  @@index([fechaIncidencia])
+  @@map("registro_danos")
+}
+
+model OptimizacionEjecucion {
+  id                 String    @id @default(uuid())
+  modeloCodigo       String    // MODELO_A .. MODELO_J
+  nombreModelo       String
+  nombreEscenario    String
+  esEscenarioBase    Boolean   @default(false)
+  parametrosEntrada  String    // JSON stringified con los parámetros
+  origenParametros   String    @default("ESTIMADO") // RECOPILADO, ESTIMADO
+  resultadoOptimo    String    // JSON stringified con los resultados
+  valorObjetivo      Float?
+  esFactible         Boolean
+  tiempoResolucionMs Int
+  interpretacion     String?
+  usuarioId          String
+  creadoEn           DateTime  @default(now())
+
+  usuario            Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@index([modeloCodigo, creadoEn])
+  @@map("optimizacion_ejecuciones")
+}
+
+model AuditoriaAccion {
+  id         String    @id @default(uuid())
+  usuarioId  String?
+  accion     String
+  modulo     String
+  detalles   String    // JSON stringified
+  ipOrigen   String?
+  creadoEn   DateTime  @default(now())
+
+  usuario    Usuario?  @relation(fields: [usuarioId], references: [id])
+
+  @@index([modulo, creadoEn])
+  @@map("auditoria_acciones")
+}
