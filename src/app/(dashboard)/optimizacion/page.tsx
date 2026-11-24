@@ -17,6 +17,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DataOriginBadge } from "@/components/common/DataOriginBadge";
+import { GuidedModelForm } from "@/components/optimizacion/GuidedModelForm";
+import { OptimizationChartsPanel } from "@/components/optimizacion/OptimizationChartsPanel";
 
 // Parámetros por defecto realistas para cada uno de los 10 modelos
 const DEFAULT_PARAMS: Record<string, any> = {
@@ -307,29 +309,59 @@ export default function OptimizacionPage() {
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                 <Cpu className="w-4 h-4 text-cin-600" />
-                Parámetros de Entrada (JSON Parametrizable)
+                Parámetros de Entrada
               </h4>
-              <button
-                type="button"
-                onClick={() => setParamsJson(JSON.stringify(DEFAULT_PARAMS[modeloActivo], null, 2))}
-                className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Restaurar Base
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById("json-editor-box");
+                    const formEl = document.getElementById("guided-form-box");
+                    if (el && formEl) {
+                      el.classList.toggle("hidden");
+                      formEl.classList.toggle("hidden");
+                    }
+                  }}
+                  className="text-[11px] font-semibold text-cin-600 hover:text-cin-800"
+                >
+                  Alternar Modo JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setParamsJson(JSON.stringify(DEFAULT_PARAMS[modeloActivo], null, 2))}
+                  className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Restaurar Base
+                </button>
+              </div>
             </div>
 
-            <p className="text-[11px] text-slate-500 mb-3">
-              Edita cualquier número (capacidades, costos, demandas o probabilidades) y ejecuta el motor para ver cómo
-              reaccionan las variables de decisión y el valor óptimo:
-            </p>
+            <div id="guided-form-box">
+              <GuidedModelForm
+                modeloCodigo={modeloActivo}
+                params={(() => {
+                  try {
+                    return JSON.parse(paramsJson);
+                  } catch {
+                    return DEFAULT_PARAMS[modeloActivo];
+                  }
+                })()}
+                onChange={(newParams) => setParamsJson(JSON.stringify(newParams, null, 2))}
+              />
+            </div>
 
-            <textarea
-              rows={14}
-              value={paramsJson}
-              onChange={(e) => setParamsJson(e.target.value)}
-              className="w-full p-3 font-mono text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cin-500"
-            />
+            <div id="json-editor-box" className="hidden">
+              <p className="text-[11px] text-slate-500 mb-2">
+                Modo JSON Avanzado: edita directamente la estructura matemática del modelo.
+              </p>
+              <textarea
+                rows={14}
+                value={paramsJson}
+                onChange={(e) => setParamsJson(e.target.value)}
+                className="w-full p-3 font-mono text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cin-500"
+              />
+            </div>
 
             <div className="mt-3">
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nombre de Escenario</label>
@@ -509,6 +541,19 @@ export default function OptimizacionPage() {
           )}
         </div>
       </div>
+
+      <OptimizationChartsPanel
+        modeloCodigo={modeloActivo}
+        parametrosBase={(() => {
+          try {
+            return JSON.parse(paramsJson);
+          } catch {
+            return DEFAULT_PARAMS[modeloActivo];
+          }
+        })()}
+        resultado={resultado}
+        historial={escenarioBase ? [escenarioBase] : []}
+      />
     </div>
   );
 }

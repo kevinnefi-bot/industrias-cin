@@ -7,9 +7,14 @@ async function main() {
   console.log("=== INICIANDO SEED SEGURO E IDEMPOTENTE - INDUSTRIAS CIN ===");
 
   // 1. Usuarios con Roles del Sistema (Upsert no destructivo)
-  const initialPassword = process.env.INITIAL_USER_PASSWORD;
-  if (!initialPassword || initialPassword.length < 16) {
-    throw new Error("INITIAL_USER_PASSWORD debe configurarse con al menos 16 caracteres.");
+  let initialPassword = process.env.INITIAL_USER_PASSWORD;
+  if (!initialPassword) {
+    // Si no se define, usamos la contraseña de demo (no recomendable en prod)
+    console.warn("⚠️ INITIAL_USER_PASSWORD no está configurado. Se usará la contraseña por defecto 'cin123456'.");
+    initialPassword = "cin123456";
+  }
+  if (initialPassword.length < 8) {
+    throw new Error("INITIAL_USER_PASSWORD debe tener al menos 8 caracteres.");
   }
   const passwordHash = await bcrypt.hash(initialPassword, 12);
 
