@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 import { registrarAuditoria } from "@/lib/services/audit";
 import { obtenerResumenInventario } from "@/lib/services/inventory";
 
@@ -61,6 +62,9 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
+    if (!tienePermiso(session.rol, "CATALOGO")) {
+      return NextResponse.json({ error: "Permiso denegado para administrar catálogo." }, { status: 403 });
+    }
 
     const json = await req.json();
     const parseResult = ProductSchema.safeParse(json);
@@ -100,6 +104,9 @@ export async function PUT(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "CATALOGO")) {
+      return NextResponse.json({ error: "Permiso denegado para administrar catálogo." }, { status: 403 });
     }
 
     const json = await req.json();

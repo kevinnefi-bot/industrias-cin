@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolverModelo } from "@/lib/math-engine";
 import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 import { registrarAuditoria } from "@/lib/services/audit";
 
 export async function POST(req: NextRequest) {
@@ -9,6 +10,9 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "No autorizado. Inicie sesión para ejecutar modelos." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "OPTIMIZACION")) {
+      return NextResponse.json({ error: "Permiso denegado para ejecutar modelos de optimización." }, { status: 403 });
     }
 
     const body = await req.json();

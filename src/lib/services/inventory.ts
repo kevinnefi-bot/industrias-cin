@@ -130,58 +130,82 @@ export async function registrarMovimientoTransaccional(data: {
     throw new Error("La cantidad de paquetes debe ser estrictamente mayor a 0.");
   }
 
-  // Verificación de producto
-  const producto = await prisma.producto.findUnique({
-    where: { id: data.productoId },
-  });
-  if (!producto) {
-    throw new Error(`Producto con ID ${data.productoId} no encontrado.`);
-  }
-
-  // Verificación de almacén
-  const almacen = await prisma.almacen.findUnique({
-    where: { id: data.almacenId },
-  });
-  if (!almacen) {
-    throw new Error(`Almacén con ID ${data.almacenId} no encontrado.`);
-  }
-
-  // Regla contable: Impedir stock negativo si es movimiento de salida
-  const esSalida =
-    data.tipo === "SALIDA_PEDIDO" ||
-    data.tipo === "DANADO" ||
-    data.tipo === "AJUSTE_NEGATIVO";
-
-  if (esSalida) {
-    const stockActual = await obtenerStockPorProducto(data.productoId);
-    if (stockActual < data.cantidadPaquetes) {
-      throw new Error(
-        `Operación denegada por consistencia contable: Stock insuficiente para ${producto.nombre}. Stock actual: ${stockActual} paquetes, Solicitado a egresar: ${data.cantidadPaquetes} paquetes.`
-      );
+  return await prisma.$transaction(async (tx) => {
+    // Verificación de producto
+    const producto = await tx.producto.findUnique({
+      where: { id: data.productoId },
+    });
+    if (!producto) {
+      throw new Error(`Producto con ID ${data.productoId} no encontrado.`);
     }
-  }
 
-  const volumenTotalLitros =
-    data.cantidadPaquetes * producto.botellasPorPaquete * producto.volumenLitros;
+    // Verificación de almacén
+    const almacen = await tx.almacen.findUnique({
+      where: { id: data.almacenId },
+    });
+    if (!almacen) {
+      throw new Error(`Almacén con ID ${data.almacenId} no encontrado.`);
+    }
 
-  const movimiento = await prisma.movimientoInventario.create({
-    data: {
-      productoId: data.productoId,
-      almacenId: data.almacenId,
-      tipo: data.tipo,
-      cantidadPaquetes: data.cantidadPaquetes,
-      volumenTotalLitros,
-      motivo: data.motivo,
-      origenDato: data.origenDato || "REAL_FUTURO",
-      usuarioId: data.usuarioId,
-      pedidoId: data.pedidoId || null,
-    },
-    include: {
-      producto: true,
-      almacen: true,
-      usuario: true,
-    },
+    // Regla contable: Impedir stock negativo si es movimiento de salida
+    const esSalida =
+      data.tipo === "SALIDA_PEDIDO" ||
+      data.tipo === "DANADO" ||
+      data.tipo === "AJUSTE_NEGATIVO";
+
+    if (esSalida) {
+      const movimientos = await tx.movimientoInventario.findMany({
+        where: { productoId: data.productoId },
+        select: { tipo: true, cantidadPaquetes: true },
+      });
+
+      let stockActual = 0;
+      for (const m of movimientos) {
+        if (
+          m.tipo === "ENTRADA_PRODUCCION" ||
+          m.tipo === "DEVOLUCION" ||
+          m.tipo === "AJUSTE_POSITIVO" ||
+          m.tipo === "REPOSICION"
+        ) {
+          stockActual += m.cantidadPaquetes;
+        } else if (
+          m.tipo === "SALIDA_PEDIDO" ||
+          m.tipo === "DANADO" ||
+          m.tipo === "AJUSTE_NEGATIVO"
+        ) {
+          stockActual -= m.cantidadPaquetes;
+        }
+      }
+
+      if (stockActual < data.cantidadPaquetes) {
+        throw new Error(
+          `Operación denegada por consistencia contable: Stock insuficiente para ${producto.nombre}. Stock actual: ${stockActual} paquetes, Solicitado a egresar: ${data.cantidadPaquetes} paquetes.`
+        );
+      }
+    }
+
+    const volumenTotalLitros =
+      data.cantidadPaquetes * producto.botellasPorPaquete * producto.volumenLitros;
+
+    const movimiento = await tx.movimientoInventario.create({
+      data: {
+        productoId: data.productoId,
+        almacenId: data.almacenId,
+        tipo: data.tipo,
+        cantidadPaquetes: data.cantidadPaquetes,
+        volumenTotalLitros,
+        motivo: data.motivo,
+        origenDato: data.origenDato || "REAL_FUTURO",
+        usuarioId: data.usuarioId,
+        pedidoId: data.pedidoId || null,
+      },
+      include: {
+        producto: true,
+        almacen: true,
+        usuario: true,
+      },
+    });
+
+    return movimiento;
   });
-
-  return movimiento;
 }

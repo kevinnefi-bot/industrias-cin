@@ -3,9 +3,19 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { obtenerResumenInventario } from "@/lib/services/inventory";
 import prisma from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "REPORTES")) {
+      return NextResponse.json({ error: "Permiso denegado para generar reportes." }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const tipo = searchParams.get("tipo") || "INVENTARIO";
     const fechaGen = new Date().toLocaleString("es-PE");

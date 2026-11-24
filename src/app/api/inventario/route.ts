@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 import { registrarMovimientoTransaccional, obtenerResumenInventario } from "@/lib/services/inventory";
 import { registrarAuditoria } from "@/lib/services/audit";
 
@@ -27,6 +28,14 @@ const MovimientoSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "INVENTARIO")) {
+      return NextResponse.json({ error: "Permiso denegado para consultar inventario." }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const productoId = searchParams.get("productoId");
     const tipo = searchParams.get("tipo");
@@ -65,6 +74,9 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "INVENTARIO")) {
+      return NextResponse.json({ error: "Permiso denegado para registrar movimientos de inventario." }, { status: 403 });
     }
 
     const body = await req.json();

@@ -7,10 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "render-build": "node scripts/render-build.js",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate dev",
+    "db:migrate:deploy": "npx prisma migrate deploy",
+    "db:migrate:postgres": "npx tsx scripts/migrate-sqlite-to-postgres.ts",
     "db:seed": "npx tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "test": "npx tsx tests/platform.test.ts",
+    "postinstall": "node scripts/prepare-db.js"
+  },
+  "engines": {
+    "node": ">=18.18.0 <=22.x"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

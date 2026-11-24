@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 import { registrarAuditoria } from "@/lib/services/audit";
 import { registrarMovimientoTransaccional } from "@/lib/services/inventory";
 
@@ -20,6 +21,14 @@ const RegistroDanoSchema = z.object({
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "CALIDAD")) {
+      return NextResponse.json({ error: "Permiso denegado para consultar calidad." }, { status: 403 });
+    }
+
     const danos = await prisma.registroDano.findMany({
       include: {
         producto: { select: { sku: true, nombre: true, linea: true, precioPaquete: true, costoProduccionPaquete: true } },
@@ -68,6 +77,9 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "CALIDAD")) {
+      return NextResponse.json({ error: "Permiso denegado para registrar incidentes de calidad." }, { status: 403 });
     }
 
     const body = await req.json();

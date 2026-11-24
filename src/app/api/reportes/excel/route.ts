@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import prisma from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 import { obtenerResumenInventario } from "@/lib/services/inventory";
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "REPORTES")) {
+      return NextResponse.json({ error: "Permiso denegado para generar reportes." }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const tipoReporte = searchParams.get("tipo") || "INVENTARIO_GENERAL";
     const fechaGen = new Date().toISOString().replace("T", " ").substring(0, 19);

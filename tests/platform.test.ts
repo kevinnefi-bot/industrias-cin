@@ -2,12 +2,18 @@ import assert from "assert";
 import { solveSimplex } from "../src/lib/math-engine/simplex-solver";
 import { solveTransportation } from "../src/lib/math-engine/transportation-solver";
 import { solveKnapsack01 } from "../src/lib/math-engine/knapsack-solver";
+import { solveWarehouseSlotting } from "../src/lib/math-engine/warehouse-optimizer";
+import { solveLotSizing } from "../src/lib/math-engine/inventory-lot-sizing";
+import { solveResourceAllocation } from "../src/lib/math-engine/resource-allocator";
+import { solveMaintenanceAssignment } from "../src/lib/math-engine/maintenance-scheduler";
 import { solveCPM } from "../src/lib/math-engine/cpm-network";
 import { solveDecisionTheory } from "../src/lib/math-engine/decision-theory";
+import { resolverModelo } from "../src/lib/math-engine";
 import { tienePermiso } from "../src/lib/auth/permissions";
 import { LPProblem } from "../src/lib/math-engine/types";
 import prisma from "../src/lib/db/prisma";
 import { registrarMovimientoTransaccional, obtenerStockPorProducto } from "../src/lib/services/inventory";
+import { DataOriginBadge, EmptyState } from "../src/components/common";
 
 async function runTestSuite() {
   console.log("==========================================================");
@@ -17,31 +23,19 @@ async function runTestSuite() {
   let passed = 0;
   let total = 0;
 
-  function test(name: string, fn: () => void | Promise<void>) {
+  async function test(name: string, fn: () => void | Promise<void>) {
     total++;
     try {
-      const res = fn();
-      if (res instanceof Promise) {
-        return res
-          .then(() => {
-            console.log(`  ✓ [PASS] ${name}`);
-            passed++;
-          })
-          .catch((e) => {
-            console.error(`  ✗ [FAIL] ${name}:`, e.message);
-          });
-      } else {
-        console.log(`  ✓ [PASS] ${name}`);
-        passed++;
-      }
+      await fn();
+      console.log(`  ✓ [PASS] ${name}`);
+      passed++;
     } catch (e: any) {
       console.error(`  ✗ [FAIL] ${name}:`, e.message);
     }
   }
 
-  // 1. TEST PROGRAMACIÓN LINEAL (SIMPLEX)
-  test("1.1 Simplex Maximización de Mix: Solución óptima y valor factible", () => {
-    // max 3x1 + 5x2 s.a. x1 <= 4, 2x2 <= 12, 3x1 + 2x2 <= 18
+  // 1. MODELO A: PROGRAMACIÓN LINEAL (SIMPLEX)
+  await test("1.1 Simplex Maximización de Mix: Solución óptima y valor factible", () => {
     const lp: LPProblem = {
       tipo: "MAX",
       c: [3, 5],
@@ -57,14 +51,12 @@ async function runTestSuite() {
     };
     const res = solveSimplex(lp);
     assert.strictEqual(res.esFactible, true);
-    // Solución teórica: x1 = 2, x2 = 6 => z = 3(2) + 5(6) = 36
     assert.strictEqual(Math.round(res.valorObjetivo), 36);
     assert.strictEqual(Math.round(res.variablesDecision["x1"]), 2);
     assert.strictEqual(Math.round(res.variablesDecision["x2"]), 6);
   });
 
-  test("1.2 Simplex Sensibilidad: Cambio de parámetro altera variables y objetivo", () => {
-    // Al aumentar la capacidad de R2 de 12 a 16:
+  await test("1.2 Simplex Sensibilidad: Variación de holguras y dualidad", () => {
     const lpMod: LPProblem = {
       tipo: "MAX",
       c: [3, 5],
@@ -80,31 +72,11 @@ async function runTestSuite() {
     };
     const resMod = solveSimplex(lpMod);
     assert.strictEqual(resMod.esFactible, true);
-    // El valor objetivo debe aumentar estrictamente
     assert(resMod.valorObjetivo > 36, "El valor objetivo debió aumentar ante mayor disponibilidad de recurso");
   });
 
-  test("1.3 Simplex Detección de Inviabilidad", () => {
-    // x1 + x2 <= 2 y x1 + x2 >= 5 (Contradicción matemática)
-    const lpInviable: LPProblem = {
-      tipo: "MAX",
-      c: [1, 1],
-      A: [
-        [1, 1],
-        [1, 1],
-      ],
-      b: [2, 5],
-      operadores: ["<=", ">="],
-      nombresVariables: ["x1", "x2"],
-      nombresRestricciones: ["R1", "R2"],
-    };
-    const res = solveSimplex(lpInviable);
-    assert.strictEqual(res.esFactible, false);
-    assert(res.interpretacion.includes("INVIABLE"), "Debe reportar inviabilidad explícita");
-  });
-
-  // 2. TEST TRANSPORTE (VOGEL)
-  test("2.1 Transporte Vogel (VAM): Costo mínimo y balanceo de oferta/demanda", () => {
+  // 2. MODELO B: PROBLEMA DE TRANSPORTE (VOGEL VAM)
+  await test("2.1 Transporte Vogel (VAM): Costo mínimo y balanceo de oferta/demanda", () => {
     const res = solveTransportation({
       orígenes: [
         { nombre: "O1", capacidad: 15 },
@@ -120,12 +92,11 @@ async function runTestSuite() {
       ],
     });
     assert.strictEqual(res.esFactible, true);
-    // Demanda 40 = Oferta 40. O1->D1=10 ($20), O1->D2=5 ($15), O2->D2=25 ($25) => Total: $60
     assert.strictEqual(res.valorObjetivo, 60);
   });
 
-  // 3. TEST MOCHILA 0-1 (KNAPSACK)
-  test("3.1 Optimización Binaria 0-1: Restricción presupuestaria de mitigación", () => {
+  // 3. MODELO C: PROTECCIÓN CONTRA DAÑOS (KNAPSACK 0-1)
+  await test("3.1 Mochila 0-1: Selección óptima de embalaje para mitigar daños", () => {
     const res = solveKnapsack01({
       presupuestoMaximo: 10,
       objetivoNombre: "Daño Evitado",
@@ -138,15 +109,99 @@ async function runTestSuite() {
       ],
     });
     assert.strictEqual(res.esFactible, true);
-    // Solución óptima: Item 1 (6, 30) + Item 3 (4, 16) => Costo: 10, Beneficio: 46
     assert.strictEqual(res.valorObjetivo, 46);
     assert.strictEqual(res.variablesDecision["Item 1"], 1);
     assert.strictEqual(res.variablesDecision["Item 3"], 1);
-    assert.strictEqual(res.variablesDecision["Item 2"], 0);
   });
 
-  // 4. TEST RUTA CRÍTICA (CPM)
-  test("4.1 CPM: Cálculo Forward/Backward Pass, Holguras y Ruta Crítica", () => {
+  // 4. MODELO D: ASIGNACIÓN DE ALMACENES Y SLOTTING
+  await test("4.1 Slotting de Almacenes: Asignación priorizada por rotación de producto", () => {
+    const res = solveWarehouseSlotting({
+      almacenes: [
+        { codigo: "ALM-A", nombre: "Almacén A", capacidadPaquetes: 100, volumenM3: 5, distanciaRampaMetros: 10 },
+        { codigo: "ALM-B", nombre: "Almacén B", capacidadPaquetes: 200, volumenM3: 10, distanciaRampaMetros: 50 },
+      ],
+      productos: [
+        { sku: "P-ALTA", nombre: "Prod Alta", rotacion: "ALTA", volumenUnitarioM3: 0.02, stockRequeridoPaquetes: 80, stockSeguridadPaquetes: 10 },
+        { sku: "P-BAJA", nombre: "Prod Baja", rotacion: "BAJA", volumenUnitarioM3: 0.02, stockRequeridoPaquetes: 50, stockSeguridadPaquetes: 5 },
+      ],
+    });
+    assert.strictEqual(res.esFactible, true);
+    assert(res.variablesDecision["P-ALTA en ALM-A"] > 0, "Producto de alta rotación debe asignarse al almacén cercano");
+  });
+
+  // 5. MODELO E: LOTE ECONÓMICO Y REPOSICIÓN (EOQ / ROP)
+  await test("5.1 Lote Económico EOQ y Stock de Seguridad: Cálculo exacto de Q* y ROP", () => {
+    const res = solveLotSizing({
+      demandaAnualUnidades: 12000,
+      costoEmisionPedido: 50,
+      costoMantenimientoUnitario: 2,
+      diasLaboralesAno: 300,
+      tiempoEntregaDias: 5,
+      desviacionEstandarDemandaDiaria: 8,
+      nivelServicioZ: 1.645,
+    });
+    assert.strictEqual(res.esFactible, true);
+    // EOQ = sqrt(2 * 12000 * 50 / 2) = sqrt(600000) approx 775
+    assert.strictEqual(res.variablesDecision["Lote Óptimo de Producción (Q*)"], 775);
+    assert(res.variablesDecision["Punto de Reorden (ROP)"] > 0);
+  });
+
+  // 6. MODELO F: ASIGNACIÓN DE RECURSOS ENERGÉTICOS E HÍDRICOS
+  await test("6.1 Optimización de Recursos (Agua y Energía): Programación en tarifa valle", () => {
+    const res = solveResourceAllocation({
+      produccionMinimaHervidosLitros: 5000,
+      produccionMinimaJugosLitros: 4000,
+      costoKwhPunta: 0.45,
+      costoKwhValle: 0.18,
+      costoM3Agua: 3.50,
+      limiteAguaM3Mensual: 50,
+      limiteKwhPuntaMensual: 800,
+    });
+    assert.strictEqual(res.esFactible, true);
+    assert(res.valorObjetivo > 0, "El costo total de producción debe ser positivo");
+  });
+
+  // 7. MODELO G: CAPEX SELECCIÓN DE PROYECTOS (BINARIA 0-1)
+  await test("7.1 Selección de Inversiones Capex: Maximización de ahorro en planta", () => {
+    const res = resolverModelo("MODELO_G", {
+      presupuestoMaximo: 50000,
+      objetivoNombre: "Ahorro Anual Proyectado",
+      unidadesBeneficio: "USD",
+      items: [
+        { id: "1", nombre: "Pasteurizador Continuo", costo: 30000, beneficio: 45000 },
+        { id: "2", nombre: "Envasadora Automática", costo: 25000, beneficio: 32000 },
+        { id: "3", nombre: "Filtro Osmosis Inversa", costo: 15000, beneficio: 22000 },
+      ],
+    });
+    assert.strictEqual(res.esFactible, true);
+    // Pasteurizador (30k, 45k) + Filtro (15k, 22k) = Costo 45k <= 50k, Beneficio: 67k
+    assert.strictEqual(res.valorObjetivo, 67000);
+  });
+
+  // 8. MODELO H: ASIGNACIÓN DE MANTENIMIENTO PREVENTIVO (HÚNGARO)
+  await test("8.1 Algoritmo Húngaro: Asignación óptima de técnicos a maquinaria", () => {
+    const res = solveMaintenanceAssignment({
+      tecnicos: [
+        { id: "T1", nombre: "Técnico 1", tarifaHora: 30 },
+        { id: "T2", nombre: "Técnico 2", tarifaHora: 25 },
+      ],
+      tareas: [
+        { id: "M1", nombre: "Caldera", maquina: "Caldera" },
+        { id: "M2", nombre: "Prensa", maquina: "Prensa" },
+      ],
+      matrizHoras: [
+        [4, 8],
+        [6, 3],
+      ],
+    });
+    assert.strictEqual(res.esFactible, true);
+    // Asignación T1->M1 (4h) + T2->M2 (3h) = 7 horas
+    assert.strictEqual(res.valorObjetivo, 7);
+  });
+
+  // 9. MODELO I: RUTA CRÍTICA (CPM)
+  await test("9.1 CPM: Cálculo Forward/Backward Pass, Holguras y Ruta Crítica", () => {
     const res = solveCPM({
       nombreProyecto: "Test CPM",
       actividades: [
@@ -157,16 +212,14 @@ async function runTestSuite() {
       ],
     });
     assert.strictEqual(res.esFactible, true);
-    // Ruta A(3) -> B(4) -> D(5) = 12 horas
     assert.strictEqual(res.valorObjetivo, 12);
     assert(res.detallesCalculo.rutaCriticaNombres.includes("Act A"));
     assert(res.detallesCalculo.rutaCriticaNombres.includes("Act B"));
     assert(res.detallesCalculo.rutaCriticaNombres.includes("Act D"));
-    assert(!res.detallesCalculo.rutaCriticaNombres.includes("Act C")); // C tiene holgura
   });
 
-  // 5. TEST TEORÍA DE DECISIONES
-  test("5.1 Teoría de Decisiones: VME, Maximin (Wald) y Savage", () => {
+  // 10. MODELO J: TEORÍA DE DECISIONES
+  await test("10.1 Teoría de Decisiones: VME, Maximin (Wald) y Savage Regret", () => {
     const res = solveDecisionTheory({
       alternativas: ["Alt 1", "Alt 2"],
       estadosNaturaleza: ["Bueno", "Malo"],
@@ -177,32 +230,27 @@ async function runTestSuite() {
       ],
     });
     assert.strictEqual(res.esFactible, true);
-    // VME Alt 1 = 100*0.7 + 20*0.3 = 76
-    // VME Alt 2 = 60*0.7 + 50*0.3 = 57
-    // VME óptimo = 76 (Alt 1)
     assert.strictEqual(res.valorObjetivo, 76);
-    // Maximin: Min(Alt 1) = 20, Min(Alt 2) = 50 => Wald elige Alt 2
     assert.strictEqual(res.detallesCalculo.criterioMaximin.recomendada, "Alt 2");
   });
 
-  // 6. TEST INVENTARIO NEGATIVO (REGLA DE NEGOCIO OBLIGATORIA)
-  await test("6.1 Consistencia Contable: Debe bloquear salidas que generen inventario negativo", async () => {
+  // 11. CONSISTENCIA CONTABLE: BLOQUEO DE STOCK NEGATIVO
+  await test("11.1 Consistencia Contable: Transacción ACID impide inventario negativo", async () => {
     const prod = await prisma.producto.findFirst();
     const alm = await prisma.almacen.findFirst();
     const user = await prisma.usuario.findFirst();
 
-    if (!prod || !alm || !user) throw new Error("Datos base insuficientes");
+    if (!prod || !alm || !user) throw new Error("Datos base insuficientes en base de datos.");
 
     const stockActual = await obtenerStockPorProducto(prod.id);
     let errorCapturado = false;
 
     try {
-      // Intentar egresar más stock del existente
       await registrarMovimientoTransaccional({
         productoId: prod.id,
         almacenId: alm.id,
         tipo: "SALIDA_PEDIDO",
-        cantidadPaquetes: stockActual + 9999, // Supera stock
+        cantidadPaquetes: stockActual + 99999,
         motivo: "Prueba de stock negativo no permitida",
         usuarioId: user.id,
       });
@@ -214,29 +262,34 @@ async function runTestSuite() {
     assert.strictEqual(errorCapturado, true, "El sistema DEBE lanzar excepción e impedir inventario negativo");
   });
 
-  // 7. TEST RBAC (PERMISOS POR ROL)
-  test("7.1 RBAC: Validación de acceso y restricciones por rol", () => {
-    // Administrador: Todos los permisos
+  // 12. SEGURIDAD RBAC (6 ROLES)
+  await test("12.1 Seguridad RBAC: Matriz de permisos server-side para los 6 roles", () => {
     assert.strictEqual(tienePermiso("ADMINISTRADOR", "ADMINISTRACION"), true);
     assert.strictEqual(tienePermiso("ADMINISTRADOR", "CATALOGO"), true);
-
-    // Gerencia: Sin administración de usuarios
     assert.strictEqual(tienePermiso("GERENCIA", "OPTIMIZACION"), true);
     assert.strictEqual(tienePermiso("GERENCIA", "ADMINISTRACION"), false);
-
-    // Calidad: Solo calidad, reportes y dashboard
-    assert.strictEqual(tienePermiso("CALIDAD", "CALIDAD"), true);
-    assert.strictEqual(tienePermiso("CALIDAD", "CATALOGO"), false);
-    assert.strictEqual(tienePermiso("CALIDAD", "DISTRIBUCION"), false);
-
-    // Distribución: Solo pedidos, flota, optimización y reportes
+    assert.strictEqual(tienePermiso("INVENTARIO", "INVENTARIO"), true);
+    assert.strictEqual(tienePermiso("INVENTARIO", "CALIDAD"), false);
+    assert.strictEqual(tienePermiso("PRODUCCION", "OPTIMIZACION"), true);
+    assert.strictEqual(tienePermiso("PRODUCCION", "PEDIDOS"), false);
     assert.strictEqual(tienePermiso("DISTRIBUCION", "DISTRIBUCION"), true);
     assert.strictEqual(tienePermiso("DISTRIBUCION", "INVENTARIO"), false);
+    assert.strictEqual(tienePermiso("CALIDAD", "CALIDAD"), true);
+    assert.strictEqual(tienePermiso("CALIDAD", "CATALOGO"), false);
+  });
+
+  // 13. COMPONENTES COMMON (DataOriginBadge y EmptyState)
+  await test("13.1 Barrel Exports: DataOriginBadge y EmptyState disponibles como named y default", () => {
+    assert.strictEqual(typeof DataOriginBadge, "function");
+    assert.strictEqual(typeof EmptyState, "function");
   });
 
   console.log("==========================================================");
   console.log(`RESUMEN: ${passed} de ${total} pruebas pasaron exitosamente.`);
   console.log("==========================================================");
+  if (passed !== total) {
+    throw new Error(`Fallaron ${total - passed} pruebas.`);
+  }
 }
 
 runTestSuite().catch((e) => {

@@ -48,3 +48,5 @@ export const EmptyState: React.FC<Props> = ({
     </div>
   );
 };
+
+export default EmptyState;

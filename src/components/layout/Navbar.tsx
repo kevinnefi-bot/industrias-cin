@@ -71,6 +71,10 @@ export const Navbar: React.FC<Props> = ({ user }) => {
     }
   };
 
+  const isDemoRoleSwitcherEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_DEMO_ROLE_SWITCHER === "true" ||
+    process.env.NODE_ENV === "development";
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white border-b border-slate-200">
       <div className="flex items-center gap-3">
@@ -83,25 +87,41 @@ export const Navbar: React.FC<Props> = ({ user }) => {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Switcher Rápido de Roles */}
+        {/* Visualización de Rol Activo y Switcher Seguro */}
         <div className="relative">
-          <button
-            onClick={() => setMenuAbierto(!menuAbierto)}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition-colors"
-          >
-            <Shield className="w-3.5 h-3.5 text-cin-600" />
-            <span className="hidden md:inline">Rol Activo:</span>
-            <span className={`px-2 py-0.5 rounded-full font-semibold border text-[11px] ${getRoleBadgeColor(user.rol)}`}>
-              {user.rol}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
+          {isDemoRoleSwitcherEnabled ? (
+            <button
+              onClick={() => setMenuAbierto(!menuAbierto)}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition-colors"
+              title="Cambio de perfil de demostración / pruebas"
+            >
+              <Shield className="w-3.5 h-3.5 text-cin-600" />
+              <span className="hidden md:inline">Rol Activo:</span>
+              <span className={`px-2 py-0.5 rounded-full font-semibold border text-[11px] ${getRoleBadgeColor(user.rol)}`}>
+                {user.rol}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg text-slate-700">
+              <Shield className="w-3.5 h-3.5 text-cin-600" />
+              <span className="hidden md:inline">Rol:</span>
+              <span className={`px-2 py-0.5 rounded-full font-semibold border text-[11px] ${getRoleBadgeColor(user.rol)}`}>
+                {user.rol}
+              </span>
+            </div>
+          )}
 
-          {menuAbierto && (
+          {isDemoRoleSwitcherEnabled && menuAbierto && (
             <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="px-4 py-2 border-b border-slate-100">
-                <p className="text-xs font-semibold text-slate-800">Prueba Rápida de Roles (RBAC)</p>
-                <p className="text-[11px] text-slate-500">Cambia de perfil instantáneamente para verificar permisos y vistas:</p>
+              <div className="px-4 py-2 border-b border-slate-100 bg-amber-50/50">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <p className="text-xs font-semibold text-slate-800">Modo Demo / Pruebas RBAC</p>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Cambio de perfil para auditar vistas y permisos RBAC:
+                </p>
               </div>
               <div className="py-1">
                 {ROLES_DISPONIBLES.map((item) => (

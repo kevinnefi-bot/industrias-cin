@@ -3,17 +3,31 @@ services:
     name: industrias-cin
     runtime: node
     plan: free
-    buildCommand: npm install && npx prisma db push && npx tsx prisma/seed.ts && npm run build
+    region: oregon
+    buildCommand: npm install && node scripts/render-build.js
     startCommand: npm start
     healthCheckPath: /login
     envVars:
-      - key: DATABASE_URL
-        value: file:./dev.db
-      - key: JWT_SECRET
-        value: cin-industrias-super-secure-jwt-key-2026-production
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
       - key: NEXT_PUBLIC_APP_NAME
         value: Industrias CIN
       - key: NEXT_PUBLIC_APP_TAGLINE
         value: Bebidas No Carbonatadas (Hervidos y Jugos)
+      - key: NEXT_PUBLIC_ENABLE_DEMO_ROLE_SWITCHER
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: industrias-cin-db
+          property: connectionString
+
+databases:
+  - name: industrias-cin-db
+    plan: free
+    region: oregon
+    databaseName: industrias_cin
+    user: cin_admin

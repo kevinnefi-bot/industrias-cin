@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { tienePermiso } from "@/lib/auth/permissions";
 import { registrarAuditoria } from "@/lib/services/audit";
 import { registrarMovimientoTransaccional } from "@/lib/services/inventory";
 
@@ -24,6 +25,14 @@ const PedidoCreateSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "PEDIDOS") && !tienePermiso(session.rol, "DISTRIBUCION")) {
+      return NextResponse.json({ error: "Permiso denegado para consultar pedidos." }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const estado = searchParams.get("estado");
     const zona = searchParams.get("zona");
@@ -127,6 +136,9 @@ export async function POST(req: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
+    if (!tienePermiso(session.rol, "PEDIDOS") && !tienePermiso(session.rol, "DISTRIBUCION")) {
+      return NextResponse.json({ error: "Permiso denegado para registrar pedidos." }, { status: 403 });
+    }
 
     const body = await req.json();
     const parseResult = PedidoCreateSchema.safeParse(body);
@@ -190,6 +202,9 @@ export async function PUT(req: NextRequest) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+    if (!tienePermiso(session.rol, "PEDIDOS") && !tienePermiso(session.rol, "DISTRIBUCION")) {
+      return NextResponse.json({ error: "Permiso denegado para actualizar pedidos." }, { status: 403 });
     }
 
     const body = await req.json();
