@@ -146,7 +146,7 @@ export default function CalidadPage() {
           </div>
           <div className="p-4 bg-white border border-slate-200 rounded-xl">
             <span className="text-xs text-slate-500 font-medium">Costo Pérdida Estimado</span>
-            <p className="text-2xl font-bold text-slate-900 mt-1">S/ {indicadores.costoTotalPerdidas.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">Bs. {indicadores.costoTotalPerdidas.toFixed(2)}</p>
             <span className="inline-block mt-1">
               <DataOriginBadge origen="ESTIMADO" />
             </span>
@@ -220,7 +220,7 @@ export default function CalidadPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">S/ {d.costoPerdidaEstimado.toFixed(2)}</span>
+                        <span className="font-bold text-slate-900">Bs. {d.costoPerdidaEstimado.toFixed(2)}</span>
                         <DataOriginBadge origen={d.origenCosto} size="sm" />
                       </div>
                     </td>
@@ -257,7 +257,7 @@ export default function CalidadPage() {
                 >
                   {productos.map((prod) => (
                     <option key={prod.id} value={prod.id}>
-                      {prod.sku} - {prod.nombre} (Costo prod: S/ {prod.costoProduccionPaquete.toFixed(2)})
+                      {prod.sku} - {prod.nombre} (Costo prod: Bs. {prod.costoProduccionPaquete.toFixed(2)})
                     </option>
                   ))}
                 </select>

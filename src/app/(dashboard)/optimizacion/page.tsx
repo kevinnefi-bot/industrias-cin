@@ -66,7 +66,7 @@ const DEFAULT_PARAMS: Record<string, any> = {
   MODELO_C: {
     presupuestoMaximo: 8500,
     objetivoNombre: "Daño y Merma Evitada",
-    unidadesBeneficio: "PEN / Mes Evitado en Mermas",
+    unidadesBeneficio: "Bs. / Mes Evitado en Mermas",
     items: [
       { id: "T1", nombre: "Separadores de Cartón Corrugado Amortiguado", costo: 2200, beneficio: 4800 },
       { id: "T2", nombre: "Esquineros Reforzados de PVC en Palets", costo: 1500, beneficio: 2900 },
@@ -111,7 +111,7 @@ const DEFAULT_PARAMS: Record<string, any> = {
   MODELO_G: {
     presupuestoMaximo: 45000,
     objetivoNombre: "Retorno y Ahorro Operativo Anual (Capex)",
-    unidadesBeneficio: "PEN / Año (Ahorro)",
+    unidadesBeneficio: "Bs. / Año (Ahorro)",
     items: [
       { id: "INV-1", nombre: "Generador de Vapor Pirotubular de Alta Eficiencia (Hervidos)", costo: 22000, beneficio: 14500 },
       { id: "INV-2", nombre: "Brazo Robótico Paletizador Automático", costo: 18000, beneficio: 11200 },
@@ -494,8 +494,8 @@ export default function OptimizacionPage() {
                 Comparación: Escenario Base vs Simulado
               </strong>
               <div className="flex items-center justify-between text-blue-800">
-                <span>Base: S/ {escenarioBase.valorObjetivo.toLocaleString()}</span>
-                <span>Simulado: S/ {resultado.valorObjetivo.toLocaleString()}</span>
+                <span>Base: Bs. {escenarioBase.valorObjetivo.toLocaleString()}</span>
+                <span>Simulado: Bs. {resultado.valorObjetivo.toLocaleString()}</span>
                 <span className="font-bold flex items-center gap-1">
                   {resultado.valorObjetivo >= escenarioBase.valorObjetivo ? (
                     <TrendingUp className="w-4 h-4 text-emerald-600" />

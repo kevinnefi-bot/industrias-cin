@@ -4,9 +4,9 @@ import { solveSimplex } from "./simplex-solver";
 export interface ResourceAllocationProblem {
   produccionMinimaHervidosLitros: number;
   produccionMinimaJugosLitros: number;
-  costoKwhPunta: number; // PEN por kWh
-  costoKwhValle: number; // PEN por kWh
-  costoM3Agua: number; // PEN por m3
+  costoKwhPunta: number; // Bs. por kWh
+  costoKwhValle: number; // Bs. por kWh
+  costoM3Agua: number; // Bs. por m3
   limiteAguaM3Mensual: number;
   limiteKwhPuntaMensual: number;
 }
@@ -86,9 +86,9 @@ export function solveResourceAllocation(problem: ResourceAllocationProblem): Opt
     (v["Jugos_TurnoValle_L"] + v["Jugos_TurnoPunta_L"]) * aguaJug;
   const kwhPuntaConsumido = v["Hervidos_TurnoPunta_L"] * kwhHerv + v["Jugos_TurnoPunta_L"] * kwhJug;
 
-  res.unidadesObjetivo = "PEN / Mes (Costo de Servicios Industriales)";
+  res.unidadesObjetivo = "Bs. / Mes (Costo de Servicios Industriales)";
   res.interpretacion =
-    `Optimización de Servicios Concluida: Gasto mínimo mensual = $${res.valorObjetivo.toLocaleString("es-PE", { minimumFractionDigits: 2 })}. ` +
+    `Optimización de Servicios Concluida: Gasto mínimo mensual = Bs. ${res.valorObjetivo.toLocaleString("es-BO", { minimumFractionDigits: 2 })}. ` +
     `Se maximizó la producción en Horario Valle (${(v["Hervidos_TurnoValle_L"] + v["Jugos_TurnoValle_L"]).toLocaleString()} L) para evitar sobrecostos por kWh en horario punta. ` +
     `Consumo hídrico proyectado: ${aguaConsumidaM3.toFixed(1)} m3 de ${problem.limiteAguaM3Mensual} m3 disponibles.`;
 

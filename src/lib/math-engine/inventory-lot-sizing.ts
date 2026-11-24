@@ -29,7 +29,7 @@ export function solveLotSizing(problem: LotSizingProblem): OptimizationResult {
     return {
       esFactible: false,
       valorObjetivo: 0,
-      unidadesObjetivo: "PEN / Año",
+      unidadesObjetivo: "Bs. / Año",
       tiempoResolucionMs: Date.now() - startTime,
       variablesDecision: {},
       interpretacion: "Parámetros de demanda o costos insuficientes para calcular EOQ.",
@@ -87,12 +87,12 @@ export function solveLotSizing(problem: LotSizingProblem): OptimizationResult {
     `Plan de Lote Óptimo y Reposición: Lote Económico Q* = ${Q_optimo.toLocaleString()} paquetes por tirada. ` +
     `Emitir nueva orden cuando el inventario descienda al ROP de ${puntoReorden.toLocaleString()} paquetes ` +
     `(incluye amortiguador de seguridad de ${stockSeguridad.toLocaleString()} paquetes para garantizar un Nivel de Servicio de ${(Z >= 2.32 ? 99 : Z >= 1.95 ? 97.5 : 95)}%). ` +
-    `Costo total anual óptimo de inventario: $${costoTotalAnual.toLocaleString("es-PE", { minimumFractionDigits: 2 })}.`;
+    `Costo total anual óptimo de inventario: Bs. ${costoTotalAnual.toLocaleString("es-BO", { minimumFractionDigits: 2 })}.`;
 
   return {
     esFactible: true,
     valorObjetivo: costoTotalAnual,
-    unidadesObjetivo: "PEN / Año (Costo Total de Gestión de Inventario)",
+    unidadesObjetivo: "Bs. / Año (Costo Total de Gestión de Inventario)",
     tiempoResolucionMs: Date.now() - startTime,
     variablesDecision,
     interpretacion,

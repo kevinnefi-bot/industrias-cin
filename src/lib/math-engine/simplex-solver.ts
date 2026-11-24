@@ -197,14 +197,14 @@ export function solveSimplex(problem: LPProblem): OptimizationResult {
     }
   }
 
-  const interpretacion = `Solución Óptima Encontrada: ${problem.tipo} = $${finalObjective.toLocaleString("es-PE", { minimumFractionDigits: 2 })}. ` +
+  const interpretacion = `Solución Óptima Encontrada: ${problem.tipo} = Bs. ${finalObjective.toLocaleString("es-BO", { minimumFractionDigits: 2 })}. ` +
     `Se maximiza/minimiza el rendimiento operativo respetando las ${numConstraints} restricciones del sistema. ` +
     `Variables activas: ${Object.entries(variablesDecision).filter(([_, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(", ") || "Ninguna"}.`;
 
   return {
     esFactible: true,
     valorObjetivo: finalObjective,
-    unidadesObjetivo: "PEN / Cantidad",
+    unidadesObjetivo: "Bs. / Cantidad",
     tiempoResolucionMs: Date.now() - startTime,
     variablesDecision,
     holgurasRestricciones,

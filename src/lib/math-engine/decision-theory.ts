@@ -26,7 +26,7 @@ export function solveDecisionTheory(problem: DecisionTheoryProblem): Optimizatio
     return {
       esFactible: false,
       valorObjetivo: 0,
-      unidadesObjetivo: "PEN",
+      unidadesObjetivo: "Bs.",
       tiempoResolucionMs: Date.now() - startTime,
       variablesDecision: {},
       interpretacion: "Matriz de decisión vacía.",
@@ -117,14 +117,14 @@ export function solveDecisionTheory(problem: DecisionTheoryProblem): Optimizatio
 
   const interpretacion =
     `Evaluación de Teoría de Decisiones Concluida: ` +
-    `Bajo riesgo probabilístico (VME), la alternativa óptima es "${altRecomendadaVME}" con un retorno esperado de $${vmeValores[bestVmeIdx].toLocaleString("es-PE", { minimumFractionDigits: 2 })}. ` +
-    `Bajo criterio conservador de aversión al riesgo (Wald Maximin), se recomienda "${altRecomendadaWald}" (pago garantizado mínimo de $${minimosPorAlt[bestMaximinIdx].toLocaleString("es-PE", { minimumFractionDigits: 2 })}). ` +
+    `Bajo riesgo probabilístico (VME), la alternativa óptima es "${altRecomendadaVME}" con un retorno esperado de Bs. ${vmeValores[bestVmeIdx].toLocaleString("es-BO", { minimumFractionDigits: 2 })}. ` +
+    `Bajo criterio conservador de aversión al riesgo (Wald Maximin), se recomienda "${altRecomendadaWald}" (pago garantizado mínimo de Bs. ${minimosPorAlt[bestMaximinIdx].toLocaleString("es-BO", { minimumFractionDigits: 2 })}). ` +
     `Para minimizar el costo de oportunidad o pesar (Savage Minimax Regret), la elección óptima es "${altRecomendadaSavage}".`;
 
   return {
     esFactible: true,
     valorObjetivo: vmeValores[bestVmeIdx],
-    unidadesObjetivo: "PEN (Valor Monetario Esperado VME)",
+    unidadesObjetivo: "Bs. (Valor Monetario Esperado VME)",
     tiempoResolucionMs: Date.now() - startTime,
     variablesDecision,
     interpretacion,

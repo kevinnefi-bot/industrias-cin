@@ -252,7 +252,7 @@ export default function PedidosPage() {
                   <th className="px-4 py-3">Vehículo Asignado</th>
                   <th className="px-4 py-3">SLA / Retraso</th>
                   <th className="px-4 py-3">Paquetes</th>
-                  <th className="px-4 py-3">Total (PEN)</th>
+                  <th className="px-4 py-3">Total (Bs.)</th>
                   <th className="px-4 py-3 text-right">Acción</th>
                 </tr>
               </thead>
@@ -307,7 +307,7 @@ export default function PedidosPage() {
                         {p.totalPaquetesSolicitados} paq
                       </td>
                       <td className="px-4 py-3 font-bold text-slate-900">
-                        S/ {p.montoTotal.toFixed(2)}
+                        Bs. {p.montoTotal.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button

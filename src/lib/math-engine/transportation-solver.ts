@@ -150,13 +150,13 @@ export function solveTransportation(problem: TransportationProblem): Optimizatio
   costoTotal = Number(costoTotal.toFixed(2));
 
   const interpretacion =
-    `Plan de Transporte Óptimo (VAM): Costo total mínimo = $${costoTotal.toLocaleString("es-PE", { minimumFractionDigits: 2 })}. ` +
+    `Plan de Transporte Óptimo (VAM): Costo total mínimo = Bs. ${costoTotal.toLocaleString("es-BO", { minimumFractionDigits: 2 })}. ` +
     `Se satisface la demanda total de ${demandaTotal} paquetes desde ${problem.orígenes.length} orígenes con capacidad disponible de ${ofertaTotal} paquetes.`;
 
   return {
     esFactible: true,
     valorObjetivo: costoTotal,
-    unidadesObjetivo: "PEN (Costo Logístico Total)",
+    unidadesObjetivo: "Bs. (Costo Logístico Total)",
     tiempoResolucionMs: Date.now() - startTime,
     variablesDecision,
     interpretacion,

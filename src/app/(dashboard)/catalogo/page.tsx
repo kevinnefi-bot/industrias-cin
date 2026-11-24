@@ -209,10 +209,10 @@ export default function CatalogoPage() {
                       </td>
                       <td className="px-4 py-3 text-slate-500">{prod.presentacion}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">
-                        S/ {prod.precioPaquete.toFixed(2)}
+                        Bs. {prod.precioPaquete.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        S/ {prod.costoProduccionPaquete.toFixed(2)}
+                        Bs. {prod.costoProduccionPaquete.toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-bold text-slate-900">{prod.stockActualPaquetes}</span>{" "}
@@ -329,7 +329,7 @@ export default function CatalogoPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Precio Paquete (PEN)</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Precio Paquete (Bs.)</label>
                   <input
                     type="number"
                     step="0.5"
@@ -341,7 +341,7 @@ export default function CatalogoPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Costo Prod. (PEN)</label>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Costo Prod. (Bs.)</label>
                   <input
                     type="number"
                     step="0.5"

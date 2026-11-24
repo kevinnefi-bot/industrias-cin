@@ -185,7 +185,7 @@ export default function DashboardPage() {
             <span className="text-xs font-medium text-slate-500">Pérdidas por Daños</span>
             <ShieldAlert className="w-4 h-4 text-rose-600" />
           </div>
-          <p className="text-2xl font-bold text-slate-900">S/ {kpis.costoTotalDanos.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-slate-900">Bs. {kpis.costoTotalDanos.toFixed(2)}</p>
           <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-100">
             <span>Paquetes: <strong className="text-slate-800">{kpis.totalPaquetesDanados}</strong></span>
             <span className="text-amber-700 font-medium">Costo Estimado</span>

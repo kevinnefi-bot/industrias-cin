@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
         "Stock Comprometido": s.stockComprometidoPaquetes,
         "Stock Mínimo": s.stockMinimoPaquetes,
         "Stock Máximo": s.stockMaximoPaquetes,
-        "Precio Paquete (PEN)": s.precioPaquete,
-        "Costo Producción (PEN)": s.costoProduccionPaquete,
-        "Valorizado Stock (PEN)": Number((s.stockActualPaquetes * s.costoProduccionPaquete).toFixed(2)),
+        "Precio Paquete (Bs.)": s.precioPaquete,
+        "Costo Producción (Bs.)": s.costoProduccionPaquete,
+        "Valorizado Stock (Bs.)": Number((s.stockActualPaquetes * s.costoProduccionPaquete).toFixed(2)),
         "Estado Stock": s.estadoStock,
         "Origen de Costo": s.origenCosto,
         "Fecha Reporte": fechaGen,
@@ -69,8 +69,8 @@ export async function GET(req: NextRequest) {
         [
           "SKU", "Producto", "Línea", "Sabor", "Presentación", "Botellas/Paquete",
           "Stock Actual (Paquetes)", "Stock en Botellas", "Stock en Litros", "Stock Disponible",
-          "Stock Comprometido", "Stock Mínimo", "Stock Máximo", "Precio Paquete (PEN)",
-          "Costo Producción (PEN)", "Valorizado Stock (PEN)", "Estado Stock", "Origen de Costo",
+          "Stock Comprometido", "Stock Mínimo", "Stock Máximo", "Precio Paquete (Bs.)",
+          "Costo Producción (Bs.)", "Valorizado Stock (Bs.)", "Estado Stock", "Origen de Costo",
           "Fecha Reporte",
         ],
         rows
@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
         "Etapa Incidencia": d.etapaIncidencia,
         "Zona": d.zonaAfectada || "Planta",
         "Vehículo": d.vehiculo ? d.vehiculo.identificador : "-",
-        "Costo Pérdida Estimado (PEN)": d.costoPerdidaEstimado,
+        "Costo Pérdida Estimado (Bs.)": d.costoPerdidaEstimado,
         "Motivo / Causa Raíz": d.motivo,
         "Acción Correctiva": d.accionCorrectiva || "-",
         "Origen de Costo": d.origenCosto,
@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
         "Calidad y Daños",
         [
           "Fecha Incidencia", "Producto", "Paquetes Dañados", "Tipo Daño", "Etapa Incidencia",
-          "Zona", "Vehículo", "Costo Pérdida Estimado (PEN)", "Motivo / Causa Raíz",
+          "Zona", "Vehículo", "Costo Pérdida Estimado (Bs.)", "Motivo / Causa Raíz",
           "Acción Correctiva", "Origen de Costo", "Fecha Generación",
         ],
         rows

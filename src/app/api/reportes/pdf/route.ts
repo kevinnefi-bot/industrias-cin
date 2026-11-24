@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
         s.stockActualPaquetes.toString(),
         s.stockDisponiblePaquetes.toString(),
         s.stockMinimoPaquetes.toString(),
-        `S/ ${s.costoProduccionPaquete.toFixed(2)}`,
-        `S/ ${(s.stockActualPaquetes * s.costoProduccionPaquete).toFixed(2)}`,
+        `Bs. ${s.costoProduccionPaquete.toFixed(2)}`,
+        `Bs. ${(s.stockActualPaquetes * s.costoProduccionPaquete).toFixed(2)}`,
         s.estadoStock,
       ]);
 
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
         d.tipoDano,
         d.etapaIncidencia,
         d.zonaAfectada || "Planta",
-        `S/ ${d.costoPerdidaEstimado.toFixed(2)}`,
+        `Bs. ${d.costoPerdidaEstimado.toFixed(2)}`,
         d.motivo.substring(0, 35),
       ]);
 

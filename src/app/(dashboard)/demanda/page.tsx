@@ -82,7 +82,7 @@ export default function DemandaPage() {
               Matriz de Clasificación ABC por Ventas Acumuladas
             </h3>
             <p className="text-[11px] text-slate-400">
-              Ventas Totales Reales: <strong>S/ {totalValorVentasGlobal.toFixed(2)}</strong> (Base de Pedidos Entregados)
+              Ventas Totales Reales: <strong>Bs. {totalValorVentasGlobal.toFixed(2)}</strong> (Base de Pedidos Entregados)
             </p>
           </div>
           <span className="text-[10px] font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
@@ -97,7 +97,7 @@ export default function DemandaPage() {
                 <th className="px-4 py-3">SKU</th>
                 <th className="px-4 py-3">Producto</th>
                 <th className="px-4 py-3">Línea</th>
-                <th className="px-4 py-3">Ventas Reales (PEN)</th>
+                <th className="px-4 py-3">Ventas Reales (Bs.)</th>
                 <th className="px-4 py-3">Paquetes Vendidos</th>
                 <th className="px-4 py-3">% Acumulado</th>
                 <th className="px-4 py-3">Clase ABC</th>
@@ -123,7 +123,7 @@ export default function DemandaPage() {
                     <td className="px-4 py-3 font-semibold text-slate-900">{item.nombre}</td>
                     <td className="px-4 py-3 text-slate-600">{item.linea}</td>
                     <td className="px-4 py-3 font-bold text-slate-800">
-                      S/ {item.valorVentasReal.toFixed(2)}
+                      Bs. {item.valorVentasReal.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{item.paquetesVendidos} paq</td>
                     <td className="px-4 py-3 font-mono text-slate-500">

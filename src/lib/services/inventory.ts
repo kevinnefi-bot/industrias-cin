@@ -139,7 +139,7 @@ export async function registrarMovimientoEnTransaccion(
   if (!Number.isInteger(data.cantidadPaquetes) || data.cantidadPaquetes <= 0) {
     throw new Error("La cantidad de paquetes debe ser estrictamente mayor a 0.");
   }
-  if (data.tipo === "TRANSFERENCIA" || data.tipo === "RESERVA") {
+  if (data.tipo === "RESERVA") {
     throw new Error(`El tipo de movimiento ${data.tipo} aún no está implementado.`);
   }
 

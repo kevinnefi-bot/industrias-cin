@@ -135,7 +135,7 @@ export default function DistribucionPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Costo Operativo:</span>
-                      <strong className="text-slate-800">S/ {v.costoOperativoKm.toFixed(2)} / km</strong>
+                      <strong className="text-slate-800">Bs. {v.costoOperativoKm.toFixed(2)} / km</strong>
                     </div>
                   </div>
 
@@ -247,7 +247,7 @@ export default function DistribucionPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Costo Operativo (PEN / km)</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Costo Operativo (Bs. / km)</label>
                   <input
                     type="number"
                     step="0.1"
